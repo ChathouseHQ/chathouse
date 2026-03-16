@@ -1,0 +1,32 @@
+{
+  "name": "@chathouse/database",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/src/index.js",
+      "types": "./dist/src/index.d.ts"
+    }
+  },
+  "scripts": {
+    "dev": "tsc --watch --preserveWatchOutput",
+    "build": "prisma generate && tsc",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/adapter-mariadb": "^7.4.2",
+    "@prisma/client": "^7.4.2",
+    "@prisma/config": "^7.4.2",
+    "dotenv": "^17.3.1"
+  },
+  "devDependencies": {
+    "prisma": "^7.4.2",
+    "typescript": "^5.9.3"
+  }
+}

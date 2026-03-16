@@ -1,0 +1,29 @@
+{
+  "name": "chathouse",
+  "private": true,
+  "description": "Self-hostable AI chat application",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run build --filter=@chathouse/database --filter=@chathouse/logger && turbo dev --continue=always",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "knip": "knip",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
+  "devDependencies": {
+    "knip": "^5.86.0",
+    "oxfmt": "^0.37.0",
+    "oxlint": "^1.52.0",
+    "turbo": "^2.5.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@11.6.0"
+}

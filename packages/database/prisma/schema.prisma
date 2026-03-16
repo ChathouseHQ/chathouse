@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  avatarUrl    String?
+  totpSecret   String?
+  totpEnabled  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  settings           UserSettings?
+  apiKeys            ApiKey[]
+  enabledModels      EnabledModel[]
+  chats              Chat[]
+  sessions           Session[]
+  passwordResetTokens PasswordResetToken[]
+  files              File[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model UserSettings {
+  id                  String  @id @default(uuid())
+  userId              String  @unique
+  registrationEnabled Boolean @default(true)
+  systemPrompt        String? @db.Text
+  chatHistoryEnabled  Boolean @default(true)
+  chatRetentionDays   Int     @default(90)
+  titleStrategy       String  @default("ai") // 'ai' | 'first_chars'
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model ApiKey {
+  id           String   @id @default(uuid())
+  userId       String
+  provider     String // 'openai' | 'anthropic' | 'google'
+  encryptedKey String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model EnabledModel {
+  id         String  @id @default(uuid())
+  userId     String
+  modelId    String
+  enabled    Boolean @default(true)
+  favorite   Boolean @default(false)
+  customName String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, modelId])
+  @@index([userId])
+  @@map("enabled_models")
+}
+
+model Chat {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String   @default("New Chat")
+  pinned      Boolean  @default(false)
+  isTemporary Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  sharedLinks SharedLink[]
+
+  @@index([userId])
+  @@map("chats")
+}
+
+model SharedLink {
+  id                 String    @id
+  chatId             String
+  autoUpdate         Boolean   @default(true)
+  includeAttachments Boolean   @default(true)
+  viewCount          Int       @default(0)
+  forkCount          Int       @default(0)
+  frozenAt           DateTime?
+  createdAt          DateTime  @default(now())
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@map("shared_links")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  chatId    String
+  role      String // 'user' | 'assistant' | 'system'
+  content   String   @db.LongText
+  model     String?
+  status    String   @default("complete") // 'pending' | 'processing' | 'complete' | 'error'
+  error     String?  @db.Text
+  createdAt DateTime @default(now())
+
+  chat  Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  files File[]
+
+  @@index([chatId])
+  @@map("messages")
+}
+
+model File {
+  id         String   @id @default(uuid())
+  userId     String
+  messageId  String?
+  filename   String
+  storedName String
+  mimeType   String
+  size       Int
+  createdAt  DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([messageId])
+  @@map("files")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model AppSettings {
+  id                  String  @id @default("app")
+  registrationEnabled Boolean @default(true)
+  setupComplete       Boolean @default(false)
+
+  @@map("app_settings")
+}
+
+model CachedModel {
+  id        String   @id @default(uuid())
+  userId    String
+  modelId   String
+  provider  String   // 'openai' | 'anthropic' | 'google'
+  name      String
+  fetchedAt DateTime @default(now())
+
+  @@unique([userId, modelId])
+  @@index([userId])
+  @@index([userId, provider])
+  @@map("cached_models")
+}

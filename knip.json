@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "workspaces": {
+    "apps/web": {
+      "entry": ["app/routes/**/*.tsx"],
+      "project": ["app/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["tailwindcss"]
+    },
+    "apps/worker": {
+      "project": ["src/**/*.ts"]
+    },
+    "apps/docs": {
+      "entry": ["app/**/*.{ts,tsx}", "source.config.ts", "components/**/*.{ts,tsx}"],
+      "project": ["**/*.{ts,tsx,mjs}"],
+      "ignoreDependencies": ["autoprefixer", "tailwindcss"]
+    },
+    "packages/database": {
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["@prisma/client"]
+    },
+    "packages/logger": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  }
+}

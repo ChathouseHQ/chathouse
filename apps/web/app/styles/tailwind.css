@@ -1,0 +1,266 @@
+/* Import Google Fonts - must be at top */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Fraunces', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Neutral black/slate primary palette */
+  --color-primary-50: #f8fafc;
+  --color-primary-100: #f1f5f9;
+  --color-primary-200: #e2e8f0;
+  --color-primary-300: #cbd5e1;
+  --color-primary-400: #94a3b8;
+  --color-primary-500: #64748b;
+  --color-primary-600: #475569;
+  --color-primary-700: #334155;
+  --color-primary-800: #1e293b;
+  --color-primary-900: #0f172a;
+  --color-primary-950: #020617;
+
+  --color-surface-50: #fafaf9;
+  --color-surface-100: #f5f5f4;
+  --color-surface-200: #e7e5e4;
+  --color-surface-300: #d6d3d1;
+  --color-surface-400: #a8a29e;
+  --color-surface-500: #78716c;
+  --color-surface-600: #57534e;
+  --color-surface-700: #44403c;
+  --color-surface-800: #292524;
+  --color-surface-900: #1c1917;
+  --color-surface-950: #0c0a09;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-300);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-400);
+}
+
+/* Smooth scroll for chat container */
+.chat-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Typing animation */
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.typing-cursor::after {
+  content: '▋';
+  animation: blink 1s infinite;
+  color: var(--color-primary-500);
+}
+
+.streaming-cursor::after {
+  content: '▋';
+  animation: blink 0.5s infinite;
+  color: var(--color-primary-600);
+  margin-left: 2px;
+}
+
+/* Message fade in */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-animate {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Sidebar transition */
+.sidebar-transition {
+  transition:
+    width 0.2s ease-in-out,
+    transform 0.2s ease-in-out;
+}
+
+/* Markdown content styling */
+.markdown-content {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.markdown-content h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #1c1917;
+}
+
+.markdown-content h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #1c1917;
+}
+
+.markdown-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: #1c1917;
+}
+
+.markdown-content p {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-content p:first-child {
+  margin-top: 0;
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-left: 1.5rem;
+}
+
+.markdown-content li {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.markdown-content ul li {
+  list-style-type: disc;
+}
+
+.markdown-content ol li {
+  list-style-type: decimal;
+}
+
+.markdown-content code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875em;
+  background-color: #f5f5f4;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  color: #c2410c;
+}
+
+.markdown-content pre {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+  background-color: #1c1917;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.markdown-content pre code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8125rem;
+  background-color: transparent;
+  padding: 0;
+  color: #e7e5e4;
+}
+
+.markdown-content blockquote {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1rem;
+  border-left: 3px solid #d6d3d1;
+  color: #57534e;
+  font-style: italic;
+}
+
+.markdown-content a {
+  color: #de590f;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-content a:hover {
+  color: #b8420f;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+  color: #1c1917;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+.markdown-content hr {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: none;
+  border-top: 1px solid #e7e5e4;
+}
+
+.markdown-content table {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.markdown-content th,
+.markdown-content td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e7e5e4;
+  text-align: left;
+}
+
+.markdown-content th {
+  background-color: #fafaf9;
+  font-weight: 600;
+}
+
+.font-display {
+  font-family: 'Fraunces', serif;
+}
+
+/* Buttons should have a pointer cursor by default */
+@layer base {
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role='button']:disabled {
+    cursor: default;
+  }
+}

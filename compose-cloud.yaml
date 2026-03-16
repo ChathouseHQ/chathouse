@@ -1,0 +1,96 @@
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - '${PORT:-80}:80'
+    volumes:
+      - ./docker/nginx/config.cloud:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+      - docs
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    expose:
+      - '3000'
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=mysql://${MYSQL_USER:-chathouse}:${MYSQL_PASSWORD:-chathouse}@mysql:3306/${MYSQL_DATABASE:-chathouse}
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE:?Set SECRET_KEY_BASE in .env (openssl rand -base64 32)}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-Chathouse <noreply@example.com>}
+      - SMTP_MOCK=${SMTP_MOCK:-false}
+    volumes:
+      - uploads_data:/app/data/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['node', 'apps/worker/dist/index.js']
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=mysql://${MYSQL_USER:-chathouse}:${MYSQL_PASSWORD:-chathouse}@mysql:3306/${MYSQL_DATABASE:-chathouse}
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE:?Set SECRET_KEY_BASE in .env (openssl rand -base64 32)}
+    volumes:
+      - uploads_data:/app/data/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile.docs
+    expose:
+      - '5008'
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8-oracle
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-chathouse}
+      - MYSQL_USER=${MYSQL_USER:-chathouse}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-chathouse}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  uploads_data:

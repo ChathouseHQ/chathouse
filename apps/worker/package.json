@@ -1,0 +1,28 @@
+{
+  "name": "@chathouse/worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "NODE_ENV=development tsx src/index.ts",
+    "dev:watch": "NODE_ENV=development tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.58",
+    "@ai-sdk/google": "^3.0.43",
+    "@ai-sdk/openai": "^3.0.41",
+    "@chathouse/database": "*",
+    "@chathouse/logger": "*",
+    "ai": "^6.0.116",
+    "bullmq": "^5.70.4",
+    "dotenv": "^17.3.1",
+    "ioredis": "^5.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

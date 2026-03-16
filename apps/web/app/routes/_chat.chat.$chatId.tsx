@@ -1,0 +1,605 @@
+import { ShareNetworkIcon } from '@phosphor-icons/react'
+import { useState, useEffect, useRef } from 'react'
+import {
+  redirect,
+  useLoaderData,
+  useNavigate,
+  useNavigation,
+  useRevalidator,
+  useFetcher,
+  type LoaderFunctionArgs,
+  type ActionFunctionArgs,
+  type MetaFunction,
+} from 'react-router'
+
+import { ChatInput } from '~/components/ChatInput'
+import { ChatMessage } from '~/components/ChatMessage'
+import { ShareDialog } from '~/components/ShareDialog'
+import { db } from '~/lib/db.server'
+import { getModelsForSelectorWithMeta } from '~/lib/models.server'
+import { addChatJob } from '~/lib/queue.server'
+import { requireAuth } from '~/lib/session.server'
+
+const PLACEHOLDER_CHAT_TITLE = 'New Chat'
+const TITLE_POLL_INTERVAL_MS = 2000
+const TITLE_POLL_WINDOW_MS = 30000
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => [
+  {
+    title: data?.chat?.title ? `${data.chat.title} - Chathouse` : 'Chat - Chathouse',
+  },
+]
+
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const user = await requireAuth(request)
+
+  const chat = await db.chat.findUnique({
+    where: { id: params.chatId, userId: user.id },
+    include: {
+      messages: {
+        orderBy: { createdAt: 'asc' },
+        include: {
+          files: {
+            select: {
+              id: true,
+              filename: true,
+              mimeType: true,
+              size: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!chat) {
+    throw redirect('/chat')
+  }
+
+  const { models, hasConnections, totalModelsCount, connectedProviders } =
+    await getModelsForSelectorWithMeta(user.id)
+
+  const settings = await db.userSettings.findUnique({
+    where: { userId: user.id },
+    select: {
+      systemPrompt: true,
+    },
+  })
+
+  const hasPendingMessage = chat.messages.some(
+    (m) => m.status === 'pending' || m.status === 'processing',
+  )
+
+  return {
+    user,
+    chat,
+    models,
+    hasConnections,
+    totalModelsCount,
+    connectedProviders,
+    settings,
+    hasPendingMessage,
+  }
+}
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  const user = await requireAuth(request)
+  const formData = await request.formData()
+  const actionType = formData.get('action') as string
+  const content = formData.get('content') as string
+  const model = formData.get('model') as string
+  const messageId = formData.get('messageId') as string
+  const fileIdsRaw = formData.get('fileIds') as string
+  const fileIds = fileIdsRaw ? fileIdsRaw.split(',').filter(Boolean) : []
+
+  const chat = await db.chat.findUnique({
+    where: { id: params.chatId, userId: user.id },
+  })
+
+  if (!chat) {
+    return redirect('/chat')
+  }
+
+  const settings = await db.userSettings.findUnique({
+    where: { userId: user.id },
+    select: {
+      systemPrompt: true,
+    },
+  })
+
+  if (actionType === 'retry' && messageId) {
+    const messageToRetry = await db.message.findUnique({
+      where: { id: messageId, chatId: chat.id },
+    })
+
+    if (!messageToRetry || messageToRetry.role !== 'assistant') {
+      return { error: 'Invalid message' }
+    }
+
+    const previousMessages = await db.message.findMany({
+      where: { chatId: chat.id },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    const msgIndex = previousMessages.findIndex((m) => m.id === messageId)
+    if (msgIndex <= 0) {
+      return { error: 'No user message found' }
+    }
+
+    const lastUserMessage = previousMessages[msgIndex - 1]
+    if (lastUserMessage.role !== 'user') {
+      return { error: 'Previous message is not from user' }
+    }
+
+    const userFiles = await db.file.findMany({
+      where: { messageId: lastUserMessage.id },
+      select: { id: true },
+    })
+
+    await db.message.update({
+      where: { id: messageId },
+      data: {
+        content: '',
+        status: 'pending',
+        error: null,
+        model: model || messageToRetry.model,
+      },
+    })
+
+    await addChatJob({
+      messageId: messageId,
+      chatId: chat.id,
+      userId: user.id,
+      content: lastUserMessage.content,
+      model: model || messageToRetry.model || 'gpt-4o-mini',
+      systemPrompt: settings?.systemPrompt || undefined,
+      fileIds: userFiles.length > 0 ? userFiles.map((f) => f.id) : undefined,
+    })
+
+    return { success: true }
+  }
+
+  if (actionType === 'edit' && messageId) {
+    if (!content?.trim()) {
+      return { error: 'Message cannot be empty' }
+    }
+
+    if (!model) {
+      return { error: 'Please select a model' }
+    }
+
+    const messageToEdit = await db.message.findUnique({
+      where: { id: messageId, chatId: chat.id },
+    })
+
+    if (!messageToEdit || messageToEdit.role !== 'user') {
+      return { error: 'Invalid message' }
+    }
+
+    await db.message.deleteMany({
+      where: {
+        chatId: chat.id,
+        createdAt: { gt: messageToEdit.createdAt },
+      },
+    })
+
+    await db.message.update({
+      where: { id: messageId },
+      data: { content: content.trim() },
+    })
+
+    if (fileIds.length > 0) {
+      await db.file.updateMany({
+        where: { id: { in: fileIds }, userId: user.id },
+        data: { messageId },
+      })
+    }
+
+    const editFiles = await db.file.findMany({
+      where: { messageId },
+      select: { id: true },
+    })
+
+    const assistantMessage = await db.message.create({
+      data: {
+        chatId: chat.id,
+        role: 'assistant',
+        content: '',
+        model,
+        status: 'pending',
+      },
+    })
+
+    await db.chat.update({
+      where: { id: chat.id },
+      data: { updatedAt: new Date() },
+    })
+
+    await addChatJob({
+      messageId: assistantMessage.id,
+      chatId: chat.id,
+      userId: user.id,
+      content: content.trim(),
+      model,
+      systemPrompt: settings?.systemPrompt || undefined,
+      fileIds: editFiles.length > 0 ? editFiles.map((f) => f.id) : undefined,
+    })
+
+    return { success: true }
+  }
+
+  if (!content?.trim()) {
+    return { error: 'Message cannot be empty' }
+  }
+
+  if (!model) {
+    return { error: 'Please select a model' }
+  }
+
+  const userMessage = await db.message.create({
+    data: {
+      chatId: chat.id,
+      role: 'user',
+      content: content.trim(),
+      status: 'complete',
+    },
+  })
+
+  // Link uploaded files to the message and collect verified IDs
+  let verifiedFileIds: string[] | undefined
+  if (fileIds.length > 0) {
+    await db.file.updateMany({
+      where: { id: { in: fileIds }, userId: user.id },
+      data: { messageId: userMessage.id },
+    })
+    const linked = await db.file.findMany({
+      where: { messageId: userMessage.id },
+      select: { id: true },
+    })
+    if (linked.length > 0) {
+      verifiedFileIds = linked.map((f) => f.id)
+    }
+  }
+
+  const assistantMessage = await db.message.create({
+    data: {
+      chatId: chat.id,
+      role: 'assistant',
+      content: '',
+      model,
+      status: 'pending',
+    },
+  })
+
+  await db.chat.update({
+    where: { id: chat.id },
+    data: { updatedAt: new Date() },
+  })
+
+  await addChatJob({
+    messageId: assistantMessage.id,
+    chatId: chat.id,
+    userId: user.id,
+    content: content.trim(),
+    model,
+    systemPrompt: settings?.systemPrompt || undefined,
+    fileIds: verifiedFileIds,
+  })
+
+  return { success: true }
+}
+
+export default function ChatPage() {
+  const { chat, models, connectedProviders, hasPendingMessage } = useLoaderData<typeof loader>()
+  const navigate = useNavigate()
+  const navigation = useNavigation()
+  const revalidator = useRevalidator()
+  const fetcher = useFetcher()
+  const isSubmitting = navigation.state === 'submitting'
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Guard: temporary chats are only accessible within the same browser tab session
+  const [tempChatAllowed, setTempChatAllowed] = useState(!chat.isTemporary)
+  useEffect(() => {
+    if (!chat.isTemporary) return
+
+    const stored: string[] = JSON.parse(sessionStorage.getItem('temp_chats') || '[]')
+
+    if (sessionStorage.getItem('temp_chat_creating')) {
+      sessionStorage.removeItem('temp_chat_creating')
+      if (!stored.includes(chat.id)) stored.push(chat.id)
+      sessionStorage.setItem('temp_chats', JSON.stringify(stored))
+      setTempChatAllowed(true)
+      return
+    }
+
+    if (stored.includes(chat.id)) {
+      setTempChatAllowed(true)
+    } else {
+      navigate('/chat', { replace: true })
+    }
+  }, [chat.id, chat.isTemporary, navigate])
+
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
+
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editingContent, setEditingContent] = useState('')
+
+  const [streamingContent, setStreamingContent] = useState<Record<string, string>>({})
+  const [streamErrors, setStreamErrors] = useState<Record<string, string>>({})
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const streamingMessageIdRef = useRef<string | null>(null)
+
+  // Get the last used model or default to first
+  const lastAssistantMessage = [...chat.messages]
+    .toReversed()
+    .find((m) => m.role === 'assistant' && m.model)
+  const [selectedModel, setSelectedModel] = useState(
+    lastAssistantMessage?.model || models[0]?.id || '',
+  )
+
+  const pendingMessage = chat.messages.find(
+    (m) => m.status === 'pending' || m.status === 'processing',
+  )
+  const shouldPollForTitle =
+    !chat.isTemporary &&
+    chat.title === PLACEHOLDER_CHAT_TITLE &&
+    chat.messages.length > 0 &&
+    Date.now() - new Date(chat.createdAt).getTime() < TITLE_POLL_WINDOW_MS
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chat.messages, streamingContent])
+
+  // SSE streaming for pending messages
+  useEffect(() => {
+    if (!pendingMessage) {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+        streamingMessageIdRef.current = null
+      }
+      setStreamingContent({})
+      return
+    }
+
+    const messageId = pendingMessage.id
+    setStreamErrors((prev) => {
+      if (!(messageId in prev)) return prev
+      const next = { ...prev }
+      delete next[messageId]
+      return next
+    })
+
+    // Don't create a new connection if we already have one for this message
+    if (streamingMessageIdRef.current === messageId && eventSourceRef.current) {
+      return
+    }
+
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+    }
+
+    const eventSource = new EventSource(`/api/chat/stream/${messageId}`)
+    eventSourceRef.current = eventSource
+    streamingMessageIdRef.current = messageId
+
+    eventSource.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+
+        if (data.type === 'content') {
+          setStreamingContent((prev) => ({
+            ...prev,
+            [messageId]: data.content,
+          }))
+        } else if (data.type === 'delta') {
+          setStreamingContent((prev) => ({
+            ...prev,
+            [messageId]: (prev[messageId] || '') + data.content,
+          }))
+        } else if (data.type === 'done') {
+          eventSource.close()
+          eventSourceRef.current = null
+          streamingMessageIdRef.current = null
+          revalidator.revalidate()
+        } else if (data.type === 'error') {
+          setStreamErrors((prev) => ({
+            ...prev,
+            [messageId]: data.error || 'The model failed to generate a response.',
+          }))
+          eventSource.close()
+          eventSourceRef.current = null
+          streamingMessageIdRef.current = null
+          revalidator.revalidate()
+        }
+      } catch {}
+    })
+
+    eventSource.addEventListener('error', () => {
+      eventSource.close()
+      eventSourceRef.current = null
+      streamingMessageIdRef.current = null
+      revalidator.revalidate()
+    })
+
+    return () => {
+      eventSource.close()
+      eventSourceRef.current = null
+      streamingMessageIdRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingMessage?.id, revalidator])
+
+  useEffect(() => {
+    if (!shouldPollForTitle) return
+
+    const intervalId = window.setInterval(() => {
+      revalidator.revalidate()
+    }, TITLE_POLL_INTERVAL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [revalidator, shouldPollForTitle])
+
+  const handleRetry = (messageId: string) => {
+    setStreamErrors((prev) => {
+      if (!(messageId in prev)) return prev
+      const next = { ...prev }
+      delete next[messageId]
+      return next
+    })
+
+    const formData = new FormData()
+    formData.append('action', 'retry')
+    formData.append('messageId', messageId)
+    formData.append('model', selectedModel)
+    fetcher.submit(formData, { method: 'post' })
+  }
+
+  const handleEdit = (messageId: string, content: string) => {
+    setEditingMessageId(messageId)
+    setEditingContent(content)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null)
+    setEditingContent('')
+  }
+
+  if (!tempChatAllowed) return null
+
+  return (
+    <div className="relative flex h-full flex-col bg-white">
+      <header className="hidden h-14 shrink-0 items-center justify-between border-b border-stone-200 bg-white px-4 md:flex">
+        <h1 className="truncate text-lg font-medium text-stone-800">{chat.title}</h1>
+        {!chat.isTemporary && (
+          <button
+            onClick={() => setIsShareDialogOpen(true)}
+            className="rounded-lg p-2 text-stone-500 transition-colors hover:bg-stone-100"
+          >
+            <ShareNetworkIcon className="h-5 w-5" />
+          </button>
+        )}
+      </header>
+
+      <div className="chat-scroll flex-1 overflow-y-auto py-4 pb-32">
+        <div className="mx-auto max-w-3xl">
+          {chat.messages.map((message, index) => {
+            // If editing this message, show inline editor
+            if (editingMessageId === message.id && message.role === 'user') {
+              return (
+                <div key={message.id} className="px-4 py-3">
+                  <div className="flex justify-end">
+                    <div className="w-full max-w-[75%]">
+                      <fetcher.Form method="post">
+                        <input type="hidden" name="action" value="edit" />
+                        <input type="hidden" name="messageId" value={message.id} />
+                        <input type="hidden" name="model" value={selectedModel} />
+                        <div className="rounded-2xl border border-stone-300 bg-white p-3 shadow-sm">
+                          <textarea
+                            name="content"
+                            defaultValue={editingContent}
+                            rows={3}
+                            autoFocus
+                            className="w-full resize-none bg-transparent text-stone-800 focus:outline-none"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Escape') handleCancelEdit()
+                            }}
+                          />
+                          <div className="mt-2 flex items-center justify-between">
+                            <select
+                              value={selectedModel}
+                              onChange={(e) => setSelectedModel(e.target.value)}
+                              className="rounded-lg border border-stone-200 bg-stone-50 px-2 py-1 text-sm text-stone-600"
+                            >
+                              {models.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={handleCancelEdit}
+                                className="rounded-lg px-3 py-1.5 text-sm text-stone-500 transition-colors hover:bg-stone-100"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                className="bg-primary-600 hover:bg-primary-700 rounded-lg px-3 py-1.5 text-sm text-white transition-colors"
+                              >
+                                Save & Send
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </fetcher.Form>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            // Use streaming content if available for pending/processing messages
+            const isMessageStreaming =
+              (message.status === 'pending' || message.status === 'processing') &&
+              !!streamingContent[message.id]
+            const displayContent = isMessageStreaming
+              ? streamingContent[message.id]
+              : message.content
+            const hasVisibleContent = displayContent.trim().length > 0
+            const effectiveError =
+              streamErrors[message.id] ||
+              message.error ||
+              (message.role === 'assistant' &&
+              !hasVisibleContent &&
+              message.status !== 'pending' &&
+              message.status !== 'processing'
+                ? 'The model returned an empty response. Please try again or switch models.'
+                : null)
+            const effectiveStatus = effectiveError ? 'error' : message.status
+
+            return (
+              <ChatMessage
+                key={message.id}
+                id={message.id}
+                role={message.role as 'user' | 'assistant'}
+                content={displayContent}
+                status={effectiveStatus as 'pending' | 'processing' | 'complete' | 'error'}
+                error={effectiveError}
+                model={message.model}
+                isLatest={index === chat.messages.length - 1}
+                isStreaming={isMessageStreaming}
+                onRetry={handleRetry}
+                onEdit={handleEdit}
+                files={message.files}
+              />
+            )
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 left-0 z-10 w-full bg-transparent p-2 !pt-0 pb-6 md:p-4">
+        <ChatInput
+          models={models}
+          selectedModel={selectedModel}
+          onModelChange={setSelectedModel}
+          isSubmitting={isSubmitting || hasPendingMessage}
+          placeholder={hasPendingMessage ? 'Waiting for response...' : 'Reply...'}
+          connectedProviders={connectedProviders}
+          isTemporary={chat.isTemporary}
+        />
+      </div>
+
+      <ShareDialog
+        isOpen={isShareDialogOpen}
+        onClose={() => setIsShareDialogOpen(false)}
+        chatId={chat.id}
+        chatTitle={chat.title}
+      />
+    </div>
+  )
+}

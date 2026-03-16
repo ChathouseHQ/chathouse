@@ -1,0 +1,23 @@
+FROM node:24-alpine AS builder
+
+WORKDIR /app
+
+COPY apps/docs/package.json apps/docs/package-lock.json ./
+RUN npm ci
+
+COPY apps/docs/ .
+RUN npm run build
+
+FROM node:24-alpine AS production
+
+WORKDIR /app
+
+COPY --from=builder /app/package.json /app/package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/.next .next
+COPY --from=builder /app/public public
+
+EXPOSE 5008
+
+CMD ["npm", "start"]
