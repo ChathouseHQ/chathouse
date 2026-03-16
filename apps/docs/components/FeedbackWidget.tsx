@@ -106,14 +106,20 @@ export function FeedbackWidget() {
       aria-label="Docs feedback widget"
     >
       <div
-        className="pointer-events-none absolute -top-4 right-0 h-[140px] w-[140px] opacity-10 dark:opacity-5"
+        className="pointer-events-none absolute top-0 right-0 flex h-[140px] w-[140px] shrink-0 items-center justify-center text-slate-900/20 dark:text-slate-50/50"
         aria-hidden="true"
       >
-        <img
-          src="https://swetrix.com/logo512.png"
-          alt=""
-          className="h-full w-full -rotate-10 object-contain"
-        />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-full -rotate-10">
+          <path
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 4L20 10L20 20"
+          />
+          <line x1="5" y1="12" x2="10.4" y2="12" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="5" y1="15" x2="14" y2="15" strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="5" y1="18" x2="14" y2="18" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
       </div>
       <h2 className="mt-2 mb-2 text-2xl font-bold text-slate-900 dark:text-white">
         Help us improve Chathouse
@@ -199,7 +205,7 @@ export function FeedbackWidget() {
         <span className="opacity-40">•</span>
         <Link
           className="font-medium transition-colors hover:text-slate-900 dark:hover:text-white"
-          href="https://github.com/Swetrix/swetrix/issues"
+          href="https://github.com/ChathouseHQ/chathouse/issues"
           target="_blank"
           rel="noopener noreferrer"
         >

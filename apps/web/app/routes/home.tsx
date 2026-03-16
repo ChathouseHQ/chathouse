@@ -5,7 +5,8 @@ export const meta: MetaFunction = () => {
     { title: 'Chathouse - The open-source AI chat interface' },
     {
       name: 'description',
-      content: 'The open-source AI chat interface. Bring your own keys, connect any model, and start chatting.',
+      content:
+        'The open-source AI chat interface. Bring your own keys, connect any model, and start chatting.',
     },
   ]
 }
