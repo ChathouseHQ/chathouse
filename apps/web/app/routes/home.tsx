@@ -2,10 +2,10 @@ import type { MetaFunction } from 'react-router'
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Chathouse - Typographic Grid' },
+    { title: 'Chathouse - The open-source AI chat interface' },
     {
       name: 'description',
-      content: 'A self-hostable AI chat application. Like ChatGPT, but you own it.',
+      content: 'The open-source AI chat interface. Bring your own keys, connect any model, and start chatting.',
     },
   ]
 }
