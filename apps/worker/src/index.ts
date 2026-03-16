@@ -72,14 +72,12 @@ async function setupPeriodicModelRefresh() {
     connection: redis as unknown as ConnectionOptions,
   })
 
-  await modelRefreshQueue.add(
-    'periodic-refresh',
-    { userId: '__all__' },
+  await modelRefreshQueue.upsertJobScheduler(
+    'periodic-model-refresh',
+    { pattern: '0 * * * *' }, // Every hour at minute 0
     {
-      repeat: {
-        pattern: '0 * * * *', // Every hour at minute 0
-      },
-      jobId: 'periodic-model-refresh',
+      name: 'periodic-refresh',
+      data: { userId: '__all__' },
     },
   )
 
