@@ -1,7 +1,6 @@
 ---
 title: Configuration reference
 description: All environment variables and settings for your Chathouse deployment.
-icon: GearSix
 ---
 
 Chathouse is configured through environment variables in your `.env` file. All variables have sensible defaults except for the two required variables below.
@@ -75,7 +74,7 @@ REDIS_URL="redis://:password@your-redis-host:6379"
 
 | Variable | Description                     | Default |
 | -------- | ------------------------------- | ------- |
-| `PORT`   | Host port the app is exposed on | `3000`  |
+| `PORT`   | Host port the app is exposed on | `80`    |
 
 The MySQL and Redis containers are not exposed to the host by default — they're only accessible within the Docker network. This is intentional for security.
 
@@ -147,11 +146,11 @@ These settings are configured through the Chathouse web UI under **Settings**, n
 
 Add API keys for the AI providers you want to use. Keys are encrypted at rest using a key derived from `SECRET_KEY_BASE`.
 
-| Provider      | Where to get a key                                                                 |
-| ------------- | ---------------------------------------------------------------------------------- |
-| OpenAI        | [platform.openai.com/api-keys](https://platform.openai.com/api-keys)               |
-| Anthropic     | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
-| Google Gemini | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)           |
+| Provider      | Where to get a key                                                             |
+| ------------- | ------------------------------------------------------------------------------ |
+| OpenAI        | [platform.openai.com/api-keys](https://platform.openai.com/api-keys)           |
+| Anthropic     | [platform.claude.com/settings/keys](https://platform.claude.com/settings/keys) |
+| Google Gemini | [aistudio.google.com/app/api-keys](https://aistudio.google.com/app/api-keys)   |
 
 ### Models (Settings > Models)
 
@@ -167,7 +166,6 @@ After connecting a provider, Chathouse automatically fetches the available model
 | ---------------- | ----------------------------------------------------- | --------- |
 | System prompt    | Default instructions prepended to every conversation  | _(empty)_ |
 | Chat history     | Whether to persist chat history                       | Enabled   |
-| Chat retention   | How many days to keep chat history                    | 90 days   |
 | Title generation | How chat titles are generated (`ai` or `first_chars`) | `ai`      |
 
 ### Security (Settings > Security)
@@ -185,7 +183,7 @@ Chathouse uses three named volumes for persistent data:
 | `redis_data`   | Session data and job queue state                     | `/data`             |
 | `uploads_data` | Uploaded file attachments                            | `/app/data/uploads` |
 
-These volumes persist across container restarts and rebuilds. Use `docker compose down -v` to delete them (irreversible).
+These volumes persist across container restarts and updates. Use `docker compose down -v` to delete them (irreversible).
 
 ## Full `.env.example`
 
@@ -202,8 +200,8 @@ MYSQL_PASSWORD=chathouse
 # Public URL where Chathouse is accessible (required)
 CLIENT_URL="https://chat.yourdomain.com"
 
-# Port the app is exposed on (default: 3000)
-# PORT=3000
+# Port the app is exposed on (default: 80)
+# PORT=80
 
 # Email (optional)
 SMTP_HOST=

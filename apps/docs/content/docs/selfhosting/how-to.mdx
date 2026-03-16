@@ -1,35 +1,59 @@
 ---
 title: How to self-host Chathouse
 description: Get Chathouse running on your own server with Docker Compose.
-icon: CloudArrowDown
 ---
 
-Chathouse is designed to be self-hosted. The entire stack — app, background worker, MySQL, and Redis — is defined in a single `compose.yaml` and can be running in under 5 minutes.
+Chathouse supports self-hosting via Docker. You can run Chathouse on your own server or on a cloud provider of your choice. It's easy to set up and maintain, no need to be a Docker expert.
 
 ## Prerequisites
 
 - A server (or local machine) with **Docker** and **Docker Compose** installed
-- At least **1 GB of RAM** and **2 GB of disk space**
-- An API key from at least one provider: [OpenAI](https://platform.openai.com/api-keys), [Anthropic](https://console.anthropic.com/settings/keys), or [Google](https://aistudio.google.com/app/apikey)
+- At least **2 GB of RAM** is recommended for the best performance
+- An API key from at least one provider: [OpenAI](https://platform.openai.com/api-keys), [Anthropic](https://platform.claude.com/settings/keys), or [Google](https://aistudio.google.com/app/api-keys)
 
 <Callout type="info">
-  You don't need API keys to deploy — you'll add them through the web UI after your first login.
+  You don't need API keys to deploy, but you'll need to add them through the web UI after your first
+  login in order to use the chat.
 </Callout>
 
-## Step 1: Clone the repository
+## Installation
+
+<Steps>
+<Step>
+### Clone the self-hosting repository
+
+Download the [self-hosting repository](https://github.com/ChathouseHQ/selfhosting) from GitHub.
 
 ```bash
-git clone https://github.com/ChathouseHQ/chathouse.git
-cd chathouse
+git clone https://github.com/ChathouseHQ/selfhosting
+cd selfhosting
 ```
 
-## Step 2: Create your environment file
+The repository contains a `compose.yaml` file with all the necessary configuration to run Chathouse.
+
+<Files>
+  <Folder name="selfhosting" defaultOpen>
+    <File name="compose.yaml" />
+    <File name=".env.example" />
+    <Folder name="nginx">
+      <File name="config" />
+    </Folder>
+  </Folder>
+</Files>
+</Step>
+
+<Step>
+### Create your environment file
 
 ```bash
 cp .env.example .env
 ```
 
-## Step 3: Configure required variables
+</Step>
+
+<Step>
+
+### Configure required variables
 
 Open `.env` and set the two required variables:
 
@@ -46,39 +70,54 @@ SECRET_KEY_BASE="paste-generated-value-here"
 CLIENT_URL="https://chat.yourdomain.com"
 ```
 
-If you're running locally, use `http://localhost:3000` (or whichever port you've configured).
+If you're running locally, use `http://localhost` (or whichever port you've configured).
 
 <Callout type="warn">
   Both variables are required. `docker compose up` will refuse to start without them.
 </Callout>
 
-## Step 4: Start Chathouse
+You can also configure the database, SMTP server, and other optional services by following the [configuration reference](./configuring.mdx).
+
+</Step>
+
+<Step>
+
+### Start Chathouse
 
 ```bash
 docker compose up -d
 ```
 
-This builds and starts four containers:
+This pulls the images and starts five containers:
 
 | Container | Purpose                                   |
 | --------- | ----------------------------------------- |
-| `app`     | The web application (port 3000)           |
+| `nginx`   | Reverse proxy (port 80)                   |
+| `app`     | The web application                       |
 | `worker`  | Background job processor for AI responses |
 | `mysql`   | MySQL 8 database                          |
 | `redis`   | Redis for sessions and job queuing        |
 
-First startup takes a few minutes while Docker builds the application image. Subsequent starts are near-instant.
+First startup takes a few minutes while Docker pulls the application images. Subsequent starts are near-instant.
 
-## Step 5: Create your account
+</Step>
 
-Open `http://your-server-ip:3000` in your browser and register your account.
+<Step>
+
+### Create your account
+
+Open `http://your-server-ip` in your browser and register your account.
 
 <Callout type="info">
   Registration automatically closes after the first user signs up. Chathouse is designed as a
   single-user (or small team) application.
 </Callout>
 
-## Step 6: Connect your AI providers
+</Step>
+
+<Step>
+
+### Connect your AI providers
 
 Navigate to **Settings > Connections** and add API keys for the providers you want to use:
 
@@ -88,49 +127,21 @@ Navigate to **Settings > Connections** and add API keys for the providers you wa
 
 Your API keys are encrypted at rest using a key derived from `SECRET_KEY_BASE` before being stored in the database.
 
+</Step>
+</Steps>
+
 ## Updating
 
 To update to the latest version:
 
 ```bash
-cd chathouse
+cd selfhosting
 git pull
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
-Your data is persisted in Docker volumes (`mysql_data`, `redis_data`, `uploads_data`) and survives rebuilds.
-
-## Reverse proxy setup
-
-In production, you'll want to put Chathouse behind a reverse proxy with TLS. Here's a minimal nginx config:
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name chat.yourdomain.com;
-
-    ssl_certificate     /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-If you're using Caddy, it's even simpler:
-
-```
-chat.yourdomain.com {
-    reverse_proxy 127.0.0.1:3000
-}
-```
-
-Make sure `CLIENT_URL` in your `.env` matches the domain you've configured in the reverse proxy.
+Your data is persisted in Docker volumes (`mysql_data`, `redis_data`, `uploads_data`) and survives container updates.
 
 ## Backups
 
@@ -177,7 +188,8 @@ To wipe all data and start fresh:
 
 ```bash
 docker compose down -v
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 <Callout type="warn">

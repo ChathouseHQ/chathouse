@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { GithubInfo } from "fumadocs-ui/components/github-info";
+import { GithubInfo } from 'fumadocs-ui/components/github-info'
 import { DocsLayout } from 'fumadocs-ui/layouts/docs'
 import { RootProvider } from 'fumadocs-ui/provider/next'
 
@@ -56,7 +56,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             }}
             links={[
               {
-                type: "custom",
+                type: 'custom',
                 children: <GithubInfo owner="ChathouseHQ" repo="chathouse" className="lg:-mx-2" />,
               },
             ]}

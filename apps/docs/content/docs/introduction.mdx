@@ -5,7 +5,9 @@ slug: /
 icon: RocketLaunch
 ---
 
-Chathouse is an open-source, self-hostable AI chat interface that connects to OpenAI, Anthropic, and Google Gemini through your own API keys. Instead of paying $20/month per provider for capped access, you pay only for what you use — typically a fraction of a cent per message.
+Chathouse is an open-source, self-hostable AI chat interface that connects to OpenAI, Anthropic, and Google Gemini through your own API keys. Instead of paying $20/month per provider for capped access, you pay only for what you use - typically a fraction of a cent per message.
+
+<img alt="Chathouse screenshot" src="/docs/img/chat.png" />
 
 <Callout type="info">
   Chathouse runs entirely on your infrastructure. Your conversations, API keys, and data never leave
@@ -14,7 +16,7 @@ Chathouse is an open-source, self-hostable AI chat interface that connects to Op
 
 ## Why Chathouse?
 
-Most people subscribe to ChatGPT, Claude, and Gemini separately — that's $60/month for access to models you could query directly via API for pennies. Chathouse gives you a single, polished chat UI across all providers, running on your own hardware, with no middleman.
+Most people subscribe to ChatGPT, Claude or Gemini separately to use their LLMs. If you want to use all of them - that's at least $60/month in subscriptions to access the models you could query directly via API for pennies. Chathouse gives you a single, polished chat UI across all providers, running on your own hardware, with no middleman.
 
 - **Bring your own keys** — connect OpenAI, Anthropic, and Google in seconds
 - **Queue-based processing** — messages process in the background, so responses continue even if you close the browser
@@ -37,44 +39,10 @@ Most people subscribe to ChatGPT, Claude, and Gemini separately — that's $60/m
 
 ## How it works
 
-Once deployed, you register your account (registration automatically closes after the first user signs up), add your API keys in **Settings > Connections**, and start chatting. Chathouse handles the rest — model routing, message queuing, response streaming, chat history, and file attachments.
+Once deployed, you register your account (registration automatically closes after the first user signs up), add your API keys in **Settings > Connections**, and start chatting.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Browser                              │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│                   React Router v7 App                        │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐   │
-│  │   Loaders   │  │   Actions    │  │    Components     │   │
-│  └─────────────┘  └──────────────┘  └───────────────────┘   │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-          ┌────────────────┼────────────────┐
-          │                │                │
-┌─────────▼──────┐ ┌───────▼───────┐ ┌──────▼──────┐
-│     MySQL      │ │     Redis     │ │   BullMQ    │
-│   (Prisma)     │ │  (Sessions)   │ │  (Worker)   │
-└────────────────┘ └───────────────┘ └──────┬──────┘
-                                            │
-                                   ┌────────▼────────┐
-                                   │  AI Providers   │
-                                   │ OpenAI/Anthropic│
-                                   │     /Google     │
-                                   └─────────────────┘
-```
+## Community
 
-## Tech stack
+Feel free to join our [Discord](https://discord.gg/chathouse) server to chat with the community or report bugs/request features. You can also report issues on our [GitHub repository](https://github.com/ChathouseHQ/chathouse/issues).
 
-- **Frontend/Backend**: React Router v7 (full-stack mode)
-- **Database**: MySQL 8 with Prisma ORM
-- **Caching/Sessions**: Redis
-- **Queue Processing**: BullMQ
-- **AI Integration**: Vercel AI SDK
-- **Styling**: Tailwind CSS v4
-
-## Need help?
-
-- **[GitHub Issues](https://github.com/ChathouseHQ/chathouse/issues)** — Report bugs or request features
-- **[Discord](https://discord.gg/chathouse)** — Chat with the community
+And feel free to follow me on [X](https://x.com/andrii_rom) to get latest updates and news about Chathouse :)
