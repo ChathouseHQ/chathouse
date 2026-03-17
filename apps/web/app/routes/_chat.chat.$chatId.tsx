@@ -296,7 +296,10 @@ export default function ChatPage() {
   const revalidator = useRevalidator()
   const fetcher = useFetcher()
   const isSubmitting = navigation.state === 'submitting'
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const lastUserMsgRef = useRef<HTMLDivElement>(null)
+  const prevChatIdRef = useRef<string | null>(null)
+  const prevMessageCountRef = useRef(0)
 
   // Guard: temporary chats are only accessible within the same browser tab session
   const [tempChatAllowed, setTempChatAllowed] = useState(!chat.isTemporary)
@@ -347,9 +350,27 @@ export default function ChatPage() {
     chat.messages.length > 0 &&
     Date.now() - new Date(chat.createdAt).getTime() < TITLE_POLL_WINDOW_MS
 
+  const lastUserMessageIndex = chat.messages.findLastIndex((m) => m.role === 'user')
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chat.messages, streamingContent])
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    if (prevChatIdRef.current !== chat.id) {
+      prevChatIdRef.current = chat.id
+      prevMessageCountRef.current = chat.messages.length
+      container.scrollTop = container.scrollHeight
+      return
+    }
+
+    const prevCount = prevMessageCountRef.current
+    const currentCount = chat.messages.length
+    prevMessageCountRef.current = currentCount
+
+    if (currentCount > prevCount && lastUserMsgRef.current) {
+      lastUserMsgRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [chat.id, chat.messages.length])
 
   // SSE streaming for pending messages
   useEffect(() => {
@@ -482,13 +503,19 @@ export default function ChatPage() {
         )}
       </header>
 
-      <div className="chat-scroll flex-1 overflow-y-auto py-4 pb-32">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto py-4 pb-32">
         <div className="mx-auto max-w-3xl">
           {chat.messages.map((message, index) => {
+            const isLastUserMessage = index === lastUserMessageIndex
+
             // If editing this message, show inline editor
             if (editingMessageId === message.id && message.role === 'user') {
               return (
-                <div key={message.id} className="px-4 py-3">
+                <div
+                  key={message.id}
+                  ref={isLastUserMessage ? lastUserMsgRef : undefined}
+                  className="px-4 py-3"
+                >
                   <div className="flex justify-end">
                     <div className="w-full max-w-[75%]">
                       <fetcher.Form method="post">
@@ -561,7 +588,7 @@ export default function ChatPage() {
                 : null)
             const effectiveStatus = effectiveError ? 'error' : message.status
 
-            return (
+            const chatMessageEl = (
               <ChatMessage
                 key={message.id}
                 id={message.id}
@@ -577,8 +604,17 @@ export default function ChatPage() {
                 files={message.files}
               />
             )
+
+            if (isLastUserMessage) {
+              return (
+                <div key={message.id} ref={lastUserMsgRef}>
+                  {chatMessageEl}
+                </div>
+              )
+            }
+
+            return chatMessageEl
           })}
-          <div ref={messagesEndRef} />
         </div>
       </div>
 
