@@ -18,7 +18,7 @@ services:
       - '3000'
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=mysql://${MYSQL_USER:-chathouse}:${MYSQL_PASSWORD:-chathouse}@mysql:3306/${MYSQL_DATABASE:-chathouse}
+      - DATABASE_URL=mysql://${MARIADB_USER:-chathouse}:${MARIADB_PASSWORD:-chathouse}@mariadb:3306/${MARIADB_DATABASE:-chathouse}
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY_BASE=${SECRET_KEY_BASE:?Set SECRET_KEY_BASE in .env (openssl rand -base64 32)}
       - SMTP_HOST=${SMTP_HOST:-}
@@ -30,7 +30,7 @@ services:
     volumes:
       - uploads_data:/app/data/uploads
     depends_on:
-      mysql:
+      mariadb:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -43,13 +43,13 @@ services:
     command: ['node', 'apps/worker/dist/index.js']
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=mysql://${MYSQL_USER:-chathouse}:${MYSQL_PASSWORD:-chathouse}@mysql:3306/${MYSQL_DATABASE:-chathouse}
+      - DATABASE_URL=mysql://${MARIADB_USER:-chathouse}:${MARIADB_PASSWORD:-chathouse}@mariadb:3306/${MARIADB_DATABASE:-chathouse}
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY_BASE=${SECRET_KEY_BASE:?Set SECRET_KEY_BASE in .env (openssl rand -base64 32)}
     volumes:
       - uploads_data:/app/data/uploads
     depends_on:
-      mysql:
+      mariadb:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -63,17 +63,17 @@ services:
       - '5008'
     restart: unless-stopped
 
-  mysql:
-    image: mysql:8-oracle
+  mariadb:
+    image: mariadb:11
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-chathouse}
-      - MYSQL_USER=${MYSQL_USER:-chathouse}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-chathouse}
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD:-rootpassword}
+      - MARIADB_DATABASE=${MARIADB_DATABASE:-chathouse}
+      - MARIADB_USER=${MARIADB_USER:-chathouse}
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD:-chathouse}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -91,6 +91,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  mysql_data:
+  mariadb_data:
   redis_data:
   uploads_data:

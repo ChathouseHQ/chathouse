@@ -32,10 +32,10 @@ cd selfhosting
 The repository contains a `compose.yaml` file with all the necessary configuration to run Chathouse.
 
 <Files>
-  <Folder name="selfhosting" defaultOpen>
+    <Folder name="selfhosting" defaultOpen>
     <File name="compose.yaml" />
     <File name=".env.example" />
-    <Folder name="nginx">
+    <Folder name="nginx" defaultOpen>
       <File name="config" />
     </Folder>
   </Folder>
@@ -95,7 +95,7 @@ This pulls the images and starts five containers:
 | `nginx`   | Reverse proxy (port 80)                   |
 | `app`     | The web application                       |
 | `worker`  | Background job processor for AI responses |
-| `mysql`   | MySQL 8 database                          |
+| `mariadb` | MariaDB database                          |
 | `redis`   | Redis for sessions and job queuing        |
 
 First startup takes a few minutes while Docker pulls the application images. Subsequent starts are near-instant.
@@ -141,25 +141,25 @@ docker compose pull
 docker compose up -d
 ```
 
-Your data is persisted in Docker volumes (`mysql_data`, `redis_data`, `uploads_data`) and survives container updates.
+Your data is persisted in Docker volumes (`mariadb_data`, `redis_data`, `uploads_data`) and survives container updates.
 
 ## Backups
 
 The important data lives in two Docker volumes:
 
-- **`mysql_data`** — all your chats, user data, and settings
+- **`mariadb_data`** — all your chats, user data, and settings
 - **`uploads_data`** — uploaded files
 
 To back up the database:
 
 ```bash
-docker compose exec mysql mysqldump -u chathouse -pchathouse chathouse > backup.sql
+docker compose exec mariadb mariadb-dump -u chathouse -pchathouse chathouse > backup.sql
 ```
 
 To restore:
 
 ```bash
-docker compose exec -T mysql mysql -u chathouse -pchathouse chathouse < backup.sql
+docker compose exec -T mariadb mariadb -u chathouse -pchathouse chathouse < backup.sql
 ```
 
 ## Troubleshooting
@@ -176,7 +176,7 @@ The most common issue is a missing `SECRET_KEY_BASE` in your `.env` file.
 
 ### Database connection errors
 
-Make sure the MySQL container is healthy before the app starts. The compose file handles this automatically with healthchecks, but if you're seeing connection errors, wait a moment and try again:
+Make sure the MariaDB container is healthy before the app starts. The compose file handles this automatically with healthchecks, but if you're seeing connection errors, wait a moment and try again:
 
 ```bash
 docker compose restart app worker

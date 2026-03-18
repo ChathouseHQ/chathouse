@@ -99,7 +99,7 @@ export default function Home9() {
               </li>
               <li className="flex justify-between border-b border-white/20 pb-2">
                 <span>DATABASE</span>
-                <span className="font-bold">MySQL 8 + Prisma</span>
+                <span className="font-bold">MariaDB + Prisma</span>
               </li>
               <li className="flex justify-between border-b border-white/20 pb-2">
                 <span>BACKGROUND</span>

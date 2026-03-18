@@ -21,27 +21,27 @@ These must be set before starting Chathouse. The application will refuse to star
 
 ## Database
 
-Chathouse bundles a MySQL 8 instance by default. These variables configure it:
+Chathouse bundles a MariaDB instance by default. These variables configure it:
 
-| Variable              | Description                           | Default        |
-| --------------------- | ------------------------------------- | -------------- |
-| `MYSQL_ROOT_PASSWORD` | Root password for the MySQL container | `rootpassword` |
-| `MYSQL_DATABASE`      | Database name                         | `chathouse`    |
-| `MYSQL_USER`          | Database user                         | `chathouse`    |
-| `MYSQL_PASSWORD`      | Database user password                | `chathouse`    |
+| Variable                | Description                             | Default        |
+| ----------------------- | --------------------------------------- | -------------- |
+| `MARIADB_ROOT_PASSWORD` | Root password for the MariaDB container | `rootpassword` |
+| `MARIADB_DATABASE`      | Database name                           | `chathouse`    |
+| `MARIADB_USER`          | Database user                           | `chathouse`    |
+| `MARIADB_PASSWORD`      | Database user password                  | `chathouse`    |
 
 The `DATABASE_URL` is constructed automatically in `compose.yaml` from these values. You don't need to set it manually unless you're using an external database.
 
 ### Using an external database
 
-To connect to an existing MySQL instance instead of the bundled one:
+To connect to an existing MariaDB (or MySQL) instance instead of the bundled one:
 
-1. Remove (or comment out) the `mysql` service from `compose.yaml`
-2. Remove the `mysql` dependency from the `app` and `worker` services
+1. Remove (or comment out) the `mariadb` service from `compose.yaml`
+2. Remove the `mariadb` dependency from the `app` and `worker` services
 3. Set `DATABASE_URL` directly in your `.env`:
 
 ```bash
-DATABASE_URL="mysql://user:password@your-mysql-host:3306/chathouse"
+DATABASE_URL="mysql://user:password@your-mariadb-host:3306/chathouse"
 ```
 
 The database schema is managed by Prisma. On first connection, Chathouse will need the schema pushed:
@@ -76,12 +76,12 @@ REDIS_URL="redis://:password@your-redis-host:6379"
 | -------- | ------------------------------- | ------- |
 | `PORT`   | Host port the app is exposed on | `80`    |
 
-The MySQL and Redis containers are not exposed to the host by default — they're only accessible within the Docker network. This is intentional for security.
+The MariaDB and Redis containers are not exposed to the host by default — they're only accessible within the Docker network. This is intentional for security.
 
 If you need direct database access for debugging, you can temporarily add port mappings:
 
 ```yaml
-mysql:
+mariadb:
   ports:
     - '3307:3306'
 
@@ -179,7 +179,7 @@ Chathouse uses three named volumes for persistent data:
 
 | Volume         | Contents                                             | Path in container   |
 | -------------- | ---------------------------------------------------- | ------------------- |
-| `mysql_data`   | All database data (users, chats, messages, settings) | `/var/lib/mysql`    |
+| `mariadb_data` | All database data (users, chats, messages, settings) | `/var/lib/mysql`    |
 | `redis_data`   | Session data and job queue state                     | `/data`             |
 | `uploads_data` | Uploaded file attachments                            | `/app/data/uploads` |
 
@@ -191,11 +191,11 @@ These volumes persist across container restarts and updates. Use `docker compose
 # Master secret (required — generate with: openssl rand -base64 32)
 SECRET_KEY_BASE="change-this-to-a-random-string"
 
-# Database (optional — defaults work out of the box with the bundled MySQL)
-MYSQL_ROOT_PASSWORD=rootpassword
-MYSQL_DATABASE=chathouse
-MYSQL_USER=chathouse
-MYSQL_PASSWORD=chathouse
+# Database (optional — defaults work out of the box with the bundled MariaDB)
+MARIADB_ROOT_PASSWORD=rootpassword
+MARIADB_DATABASE=chathouse
+MARIADB_USER=chathouse
+MARIADB_PASSWORD=chathouse
 
 # Public URL where Chathouse is accessible (required)
 CLIENT_URL="https://chat.yourdomain.com"
