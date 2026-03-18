@@ -14,7 +14,7 @@ RUN npm ci
 
 # Copy source and build
 COPY . .
-RUN npx turbo build
+RUN npx turbo build --filter=@chathouse/web --filter=@chathouse/worker
 
 # Production stage
 FROM node:24-alpine AS production
