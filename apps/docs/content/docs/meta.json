@@ -1,4 +1,11 @@
 {
   "title": "Docs",
-  "pages": ["---Get Started---", "introduction", "---Self-hosting---", "...selfhosting"]
+  "pages": [
+    "---Get Started---",
+    "introduction",
+    "---Usage---",
+    "...usage",
+    "---Self-hosting---",
+    "...selfhosting"
+  ]
 }
