@@ -15,13 +15,14 @@ export const metadata = {
     default: 'Chathouse Docs',
   },
   description: 'Chathouse documentation',
-  icons: { icon: '/favicon.ico' },
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
+      <head>
+        <link rel="icon" href="/docs/favicon.ico" />
+      </head>
       <body>
         <RootProvider search={{ options: { api: '/docs/api/search' } }}>
           <DocsLayout
