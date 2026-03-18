@@ -15,7 +15,7 @@ export const metadata = {
     default: 'Chathouse Docs',
   },
   description: 'Chathouse documentation',
-  icons: { icon: '/favicon.ico' },
+  icons: { icon: '/docs/favicon.ico' },
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
