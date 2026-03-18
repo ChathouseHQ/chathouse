@@ -15,7 +15,6 @@ RUN npm ci
 # Copy source and build
 COPY . .
 RUN npx turbo build
-RUN npm run db:generate
 
 # Production stage
 FROM node:24-alpine AS production
@@ -30,12 +29,12 @@ COPY packages/database/package.json packages/database/
 COPY packages/database/prisma packages/database/prisma
 COPY packages/database/prisma.config.ts packages/database/
 RUN npm ci --omit=dev
-RUN npm run db:generate
 
-# Copy built assets
+# Copy built assets and generated Prisma client
 COPY --from=builder /app/apps/web/build apps/web/build
 COPY --from=builder /app/apps/worker/dist apps/worker/dist
 COPY --from=builder /app/packages/database/dist packages/database/dist
+COPY --from=builder /app/packages/database/generated packages/database/generated
 
 # Create data directory
 RUN mkdir -p data/uploads
