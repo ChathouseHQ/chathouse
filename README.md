@@ -21,6 +21,8 @@ Chathouse is an open-source, privacy-focused, and self-hostable AI chat applicat
 
 We are passionate about privacy and open source, aiming to build tools that empower users to maintain ownership of their data.
 
+<img alt="Chathouse Chat" src="https://chathou.se/docs/img/chat.png?v=1">
+
 ## ✨ Why Chathouse?
 
 We are building Chathouse to make interacting with Large Language Models simple, secure, and respectful of your privacy.
@@ -46,7 +48,7 @@ Currently, Chathouse can only be self-hosted on your own server (I'd love to add
 
 ## 🤝 Contributing
 
-See our [contributing guide](./CONTRIBUTING.MD) to get started. We welcome any contribution to the project!
+We welcome any contribution to the project!
 
 Feel free to go through our [open issues](https://github.com/Swetrix/swetrix/issues) and pick any task you want to work on.
 
