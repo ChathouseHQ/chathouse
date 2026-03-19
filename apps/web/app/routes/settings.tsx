@@ -3,6 +3,7 @@ import {
   CpuIcon,
   FileIcon,
   GearIcon,
+  InfoIcon,
   KeyIcon,
   ListIcon,
   ShieldCheckIcon,
@@ -58,6 +59,12 @@ const tabs = [
     label: 'Files',
     icon: FileIcon,
     iconColor: 'text-amber-500',
+  },
+  {
+    to: '/settings/about',
+    label: 'About',
+    icon: InfoIcon,
+    iconColor: 'text-stone-500',
   },
 ]
 

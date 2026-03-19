@@ -1,6 +1,8 @@
 # Build stage
 FROM node:24-alpine AS builder
 
+ARG APP_VERSION=dev
+
 WORKDIR /app
 
 # Copy workspace config and package files for dependency install
@@ -19,6 +21,9 @@ RUN npx turbo build --filter=@chathouse/web --filter=@chathouse/worker
 
 # Production stage
 FROM node:24-alpine AS production
+
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 
 WORKDIR /app
 

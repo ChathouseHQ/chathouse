@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 
 import './styles/tailwind.css'
 import Analytics from './components/Analytics'
+import VersionCheck from './components/VersionCheck'
 
 export const links: LinksFunction = () => [
   {
@@ -34,6 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body className="bg-surface-50 text-surface-900 h-full font-sans antialiased">
         {children}
         <Analytics />
+        <VersionCheck />
         <Toaster richColors position="top-right" />
         <ScrollRestoration />
         <Scripts />
