@@ -9,6 +9,7 @@ import {
   LightningIcon,
   XIcon,
   FileTextIcon,
+  UploadSimpleIcon,
 } from '@phosphor-icons/react'
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { Form, Link, useFetcher, useNavigation } from 'react-router'
@@ -81,6 +82,7 @@ export function ChatInput({
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const [uploadingCount, setUploadingCount] = useState(0)
   const [previewFile, setPreviewFile] = useState<AttachedFile | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   const isLoading = isSubmitting || navigation.state === 'submitting'
   const isUploading = uploadingCount > 0
@@ -263,6 +265,25 @@ export function ChatInput({
     setAttachedFiles((prev) => prev.filter((f) => f.id !== fileId))
   }, [])
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return
+    setIsDragging(false)
+  }, [])
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      setIsDragging(false)
+      handleFileSelect(e.dataTransfer.files)
+    },
+    [handleFileSelect],
+  )
+
   return (
     <Form
       method="post"
@@ -292,13 +313,29 @@ export function ChatInput({
 
       <div className="relative mx-auto max-w-3xl">
         <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           className={cn(
-            'rounded-xl border transition-all duration-300',
+            'relative rounded-xl border transition-all duration-300',
             isTemporary
               ? 'border-slate-600 bg-slate-800 focus-within:border-slate-500'
               : 'border-surface-200 focus-within:border-surface-400 bg-white',
+            isDragging &&
+              (isTemporary
+                ? 'border-slate-400 bg-slate-700/80'
+                : 'border-primary-400 bg-primary-50/50'),
           )}
         >
+          {isDragging && (
+            <div className="border-primary-400/60 pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed">
+              <div className="text-primary-600 flex items-center gap-2">
+                <UploadSimpleIcon className="h-5 w-5" />
+                <span className="text-sm font-medium">Drop files here</span>
+              </div>
+            </div>
+          )}
+
           <div className="px-4 pt-4 pb-2">
             <textarea
               ref={textareaRef}
@@ -341,15 +378,34 @@ export function ChatInput({
                         className="h-9 w-9 rounded object-cover"
                       />
                     ) : (
-                      <div className="flex h-9 w-9 items-center justify-center rounded bg-stone-200/60">
-                        <FileTextIcon className="h-4 w-4 text-stone-500" />
+                      <div
+                        className={cn(
+                          'flex h-9 w-9 items-center justify-center rounded',
+                          isTemporary ? 'bg-slate-600' : 'bg-stone-200/60',
+                        )}
+                      >
+                        <FileTextIcon
+                          className={cn(
+                            'h-4 w-4',
+                            isTemporary ? 'text-slate-300' : 'text-stone-500',
+                          )}
+                        />
                       </div>
                     )}
                     <div className="min-w-0 text-left">
-                      <Text size="xs" weight="medium" truncate className="block max-w-[140px]">
+                      <Text
+                        size="xs"
+                        weight="medium"
+                        truncate
+                        className={cn('block max-w-[140px]', isTemporary && 'text-slate-100')}
+                      >
                         {file.filename}
                       </Text>
-                      <Text size="xs" colour="muted" className="block">
+                      <Text
+                        size="xs"
+                        colour="muted"
+                        className={cn('block', isTemporary && 'text-slate-400')}
+                      >
                         {formatFileSize(file.size)}
                       </Text>
                     </div>
@@ -357,7 +413,12 @@ export function ChatInput({
                   <button
                     type="button"
                     onClick={() => removeFile(file.id)}
-                    className="absolute top-1 right-1 rounded p-0.5 text-stone-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-stone-200 hover:text-stone-600"
+                    className={cn(
+                      'absolute top-1 right-1 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100',
+                      isTemporary
+                        ? 'text-slate-400 hover:bg-slate-600 hover:text-slate-200'
+                        : 'text-stone-400 hover:bg-stone-200 hover:text-stone-600',
+                    )}
                   >
                     <XIcon className="h-3.5 w-3.5" />
                   </button>
