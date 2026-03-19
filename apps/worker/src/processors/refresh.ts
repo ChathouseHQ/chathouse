@@ -2,8 +2,8 @@ import { decrypt, type ModelRefreshJobData } from '@chathouse/database'
 import { createLogger } from '@chathouse/logger'
 import { Job } from 'bullmq'
 
-import { db } from '../config'
-import { formatModelName, isOpenAIModelId } from '../utils'
+import { db } from '../config.js'
+import { formatModelName, isOpenAIModelId } from '../utils.js'
 
 const logger = createLogger('worker:refresh')
 

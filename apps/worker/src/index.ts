@@ -3,9 +3,9 @@ import type { ChatJobData, TitleJobData, ModelRefreshJobData } from '@chathouse/
 import { createLogger } from '@chathouse/logger'
 import { Worker, Queue, type ConnectionOptions } from 'bullmq'
 
-import { redis, redisOptions, db } from './config'
-import { processChatJob, processTitleJob } from './processors/chat'
-import { processModelRefreshJob } from './processors/refresh'
+import { redis, redisOptions, db } from './config.js'
+import { processChatJob, processTitleJob } from './processors/chat.js'
+import { processModelRefreshJob } from './processors/refresh.js'
 
 const logger = createLogger('worker')
 let modelRefreshQueue: Queue<ModelRefreshJobData> | undefined

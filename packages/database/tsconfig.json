@@ -12,7 +12,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "outDir": "./dist",
-    "rootDir": "."
+    "rootDir": "./src"
   },
-  "include": ["src/**/*", "generated/prisma/client.ts"]
+  "include": ["src/**/*"]
 }

@@ -7,7 +7,7 @@ import { existsSync } from 'fs'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-import { db, redis } from './config'
+import { db, redis } from './config.js'
 
 function resolveUploadDir(): string {
   if (process.env.UPLOAD_DIR) return process.env.UPLOAD_DIR

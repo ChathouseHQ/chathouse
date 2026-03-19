@@ -7,14 +7,14 @@ import { createLogger } from '@chathouse/logger'
 import { generateText, type ModelMessage } from 'ai'
 import { Job } from 'bullmq'
 
-import { db } from '../config'
+import { db } from '../config.js'
 import {
   getApiKey,
   streamAIResponse,
   DEFAULT_TITLE_CHAR_LIMIT,
   loadFileContent,
   buildMultimodalContent,
-} from '../utils'
+} from '../utils.js'
 
 const logger = createLogger('worker:chat')
 
@@ -47,7 +47,7 @@ export async function processChatJob(job: Job<ChatJobData>) {
     for (const m of previousMessages) {
       if (m.role === 'user' && m.files.length > 0) {
         const fileBuffers = await Promise.all(
-          m.files.map(async (f) => ({
+          m.files.map(async (f: any) => ({
             buffer: await loadFileContent(f),
             mimeType: f.mimeType,
           })),
@@ -70,7 +70,7 @@ export async function processChatJob(job: Job<ChatJobData>) {
         select: { id: true, storedName: true, mimeType: true },
       })
       const fileBuffers = await Promise.all(
-        currentFiles.map(async (f) => ({
+        currentFiles.map(async (f: any) => ({
           buffer: await loadFileContent(f),
           mimeType: f.mimeType,
         })),

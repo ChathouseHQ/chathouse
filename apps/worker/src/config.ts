@@ -2,7 +2,7 @@ import { config } from 'dotenv'
 config({ path: '../../.env', quiet: true })
 
 import { createDbClient } from '@chathouse/database'
-import Redis from 'ioredis'
+import { Redis } from 'ioredis'
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
 export const redisOptions = {
