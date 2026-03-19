@@ -9,5 +9,5 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return redirect('/chat')
   }
 
-  return redirect('/home')
+  return redirect('/login')
 }
