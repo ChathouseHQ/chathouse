@@ -32,6 +32,7 @@ We are building Chathouse to make interacting with Large Language Models simple,
 - **File Uploads**: Attach files & media to your messages and have them processed by the AI.
 - **Temporary Chats**
 - **Sharable Chats**
+- **Branching**
 - **2FA & (soon to be) OIDC**
 
 Planned features:
