@@ -27,7 +27,7 @@ export async function cleanupTemporaryChats(userId: string) {
 
     if (expiredChats.length === 0) return
 
-    const chatIds = expiredChats.map((c) => c.id)
+    const chatIds = expiredChats.map((c: { id: string }) => c.id)
 
     const files = await db.file.findMany({
       where: {
@@ -37,11 +37,13 @@ export async function cleanupTemporaryChats(userId: string) {
     })
 
     const uploadPath = UPLOAD_DIR
-    await Promise.allSettled(files.map((f) => fs.unlink(path.join(uploadPath, f.storedName))))
+    await Promise.allSettled(
+      files.map((f: { storedName: string }) => fs.unlink(path.join(uploadPath, f.storedName))),
+    )
 
     if (files.length > 0) {
       await db.file.deleteMany({
-        where: { id: { in: files.map((f) => f.id) } },
+        where: { id: { in: files.map((f: { id: string }) => f.id) } },
       })
     }
 

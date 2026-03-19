@@ -62,7 +62,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   })
 
   const connectedProviders = apiKeys.reduce(
-    (acc, key) => {
+    (
+      acc: Record<string, { connected: boolean; updatedAt: Date }>,
+      key: { provider: string; updatedAt: Date },
+    ) => {
       acc[key.provider] = { connected: true, updatedAt: key.updatedAt }
       return acc
     },

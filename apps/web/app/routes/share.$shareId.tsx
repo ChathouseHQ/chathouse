@@ -4,6 +4,15 @@ import { Link, useLoaderData, type LoaderFunctionArgs, type MetaFunction } from 
 import { ChatMessage } from '~/components/ChatMessage'
 import { db } from '~/lib/db.server'
 
+interface SharedMessage {
+  id: string
+  role: string
+  content: string
+  model: string | null
+  createdAt: string | Date
+  files: Array<{ id: string; filename: string; mimeType: string; size: number }>
+}
+
 export const meta: MetaFunction<typeof loader> = ({ data }) => [
   { title: data?.chat?.title ? `${data.chat.title} - Chathouse` : 'Shared Chat - Chathouse' },
 ]
@@ -54,15 +63,18 @@ export async function loader({ params }: LoaderFunctionArgs) {
 
   const { chat } = sharedLink
 
-  let messages = chat.messages
+  let messages: SharedMessage[] = chat.messages
   if (sharedLink.frozenAt) {
-    messages = messages.filter((m) => new Date(m.createdAt) <= sharedLink.frozenAt!)
+    messages = messages.filter((m: SharedMessage) => new Date(m.createdAt) <= sharedLink.frozenAt!)
   }
 
   if (!sharedLink.includeAttachments) {
-    messages = messages.map((m) => ({
+    messages = messages.map((m: SharedMessage) => ({
       ...m,
-      files: m.files.map((f) => ({ ...f, id: '' })),
+      files: m.files.map((f: { id: string; filename: string; mimeType: string; size: number }) => ({
+        ...f,
+        id: '',
+      })),
     }))
   }
 
@@ -98,7 +110,7 @@ export default function SharedChatPage() {
 
       <main className="mx-auto max-w-4xl">
         <div className="divide-surface-200 divide-y">
-          {messages.map((message) => (
+          {messages.map((message: SharedMessage) => (
             <ChatMessage
               key={message.id}
               id={message.id}

@@ -21,7 +21,7 @@ async function getConnectedProviders(userId: string): Promise<Set<Provider>> {
     where: { userId },
     select: { provider: true },
   })
-  return new Set(apiKeys.map((k) => k.provider as Provider))
+  return new Set(apiKeys.map((k: { provider: string }) => k.provider as Provider))
 }
 
 export async function getCachedModels(userId: string): Promise<{
@@ -36,7 +36,7 @@ export async function getCachedModels(userId: string): Promise<{
   const lastRefresh = cachedModels.length > 0 ? cachedModels[0].fetchedAt : null
 
   return {
-    models: cachedModels.map((m) => ({
+    models: cachedModels.map((m: { modelId: string; provider: string; name: string }) => ({
       id: m.modelId,
       provider: m.provider as Provider,
       name: m.name,
@@ -52,7 +52,7 @@ async function getEnabledModels(userId: string): Promise<EnrichedModel[]> {
   })
 
   type SettingRow = (typeof settings)[number]
-  const settingsMap = new Map<string, SettingRow>(settings.map((s) => [s.modelId, s]))
+  const settingsMap = new Map<string, SettingRow>(settings.map((s: SettingRow) => [s.modelId, s]))
 
   const { models: cachedModels } = await getCachedModels(userId)
 

@@ -48,7 +48,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     select: { provider: true },
   })
 
-  const connectedProviders = apiKeys.map((k) => k.provider)
+  const connectedProviders = apiKeys.map((k: { provider: string }) => k.provider)
 
   const { models: cachedModels, lastRefresh } = await getCachedModels(user.id)
 

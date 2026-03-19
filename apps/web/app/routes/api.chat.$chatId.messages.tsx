@@ -29,7 +29,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   const hasPendingMessage = chat.messages.some(
-    (m) => m.status === 'pending' || m.status === 'processing',
+    (m: { status: string }) => m.status === 'pending' || m.status === 'processing',
   )
 
   return {

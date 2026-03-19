@@ -29,7 +29,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   })
 
-  const totalSize = files.reduce((sum, f) => sum + f.size, 0)
+  const totalSize = files.reduce((sum: number, f: { size: number }) => sum + f.size, 0)
 
   return { files, totalSize }
 }
@@ -83,72 +83,81 @@ export default function SettingsFilesPage() {
           </Panel>
         ) : (
           <div className="space-y-2">
-            {files.map((file) => {
-              const isImage = file.mimeType.startsWith('image/')
-              const isDeleting =
-                deleteFetcher.state !== 'idle' &&
-                deleteFetcher.formAction === `/api/files/${file.id}/delete`
+            {files.map(
+              (file: {
+                id: string
+                filename: string
+                mimeType: string
+                size: number
+                createdAt: string | Date
+                message: { chat: { id: string; title: string } } | null
+              }) => {
+                const isImage = file.mimeType.startsWith('image/')
+                const isDeleting =
+                  deleteFetcher.state !== 'idle' &&
+                  deleteFetcher.formAction === `/api/files/${file.id}/delete`
 
-              return (
-                <Panel key={file.id} className={isDeleting ? 'opacity-50' : undefined}>
-                  <div className="flex items-center gap-3">
-                    {isImage ? (
-                      <img
-                        src={`/api/files/${file.id}`}
-                        alt={file.filename}
-                        className="h-10 w-10 shrink-0 rounded-md object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-stone-100">
-                        <FileTextIcon className="h-5 w-5 text-stone-500" />
+                return (
+                  <Panel key={file.id} className={isDeleting ? 'opacity-50' : undefined}>
+                    <div className="flex items-center gap-3">
+                      {isImage ? (
+                        <img
+                          src={`/api/files/${file.id}`}
+                          alt={file.filename}
+                          className="h-10 w-10 shrink-0 rounded-md object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-stone-100">
+                          <FileTextIcon className="h-5 w-5 text-stone-500" />
+                        </div>
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <Text size="sm" weight="medium" truncate>
+                          {file.filename}
+                        </Text>
+                        <div className="flex items-center gap-2 text-xs text-stone-400">
+                          <span>{formatFileSize(file.size)}</span>
+                          <span>&middot;</span>
+                          <span>{formatAbsoluteDate(file.createdAt)}</span>
+                          {file.message?.chat && (
+                            <>
+                              <span>&middot;</span>
+                              <a
+                                href={`/chat/${file.message.chat.id}`}
+                                className="text-primary-600 truncate hover:underline"
+                              >
+                                {file.message.chat.title}
+                              </a>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    )}
 
-                    <div className="min-w-0 flex-1">
-                      <Text size="sm" weight="medium" truncate>
-                        {file.filename}
-                      </Text>
-                      <div className="flex items-center gap-2 text-xs text-stone-400">
-                        <span>{formatFileSize(file.size)}</span>
-                        <span>&middot;</span>
-                        <span>{formatAbsoluteDate(file.createdAt)}</span>
-                        {file.message?.chat && (
-                          <>
-                            <span>&middot;</span>
-                            <a
-                              href={`/chat/${file.message.chat.id}`}
-                              className="text-primary-600 truncate hover:underline"
-                            >
-                              {file.message.chat.title}
-                            </a>
-                          </>
-                        )}
+                      <div className="flex shrink-0 items-center gap-1">
+                        <a
+                          href={`/api/files/${file.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600"
+                          title="Download"
+                        >
+                          <DownloadSimpleIcon className="h-4 w-4" />
+                        </a>
+                        <button
+                          onClick={() => handleDelete(file.id, file.filename)}
+                          disabled={isDeleting}
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                          title="Delete"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-
-                    <div className="flex shrink-0 items-center gap-1">
-                      <a
-                        href={`/api/files/${file.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600"
-                        title="Download"
-                      >
-                        <DownloadSimpleIcon className="h-4 w-4" />
-                      </a>
-                      <button
-                        onClick={() => handleDelete(file.id, file.filename)}
-                        disabled={isDeleting}
-                        className="flex h-8 w-8 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                        title="Delete"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </Panel>
-              )
-            })}
+                  </Panel>
+                )
+              },
+            )}
           </div>
         )}
       </section>

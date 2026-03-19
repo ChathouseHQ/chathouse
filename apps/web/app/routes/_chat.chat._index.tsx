@@ -91,7 +91,7 @@ export async function action({ request }: ActionFunctionArgs) {
       select: { id: true },
     })
     if (linked.length > 0) {
-      verifiedFileIds = linked.map((f) => f.id)
+      verifiedFileIds = linked.map((f: { id: string }) => f.id)
     }
   }
 

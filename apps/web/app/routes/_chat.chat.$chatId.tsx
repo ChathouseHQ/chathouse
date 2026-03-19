@@ -20,6 +20,16 @@ import { getModelsForSelectorWithMeta } from '~/lib/models.server'
 import { addChatJob } from '~/lib/queue.server'
 import { requireAuth } from '~/lib/session.server'
 
+interface MessageRow {
+  id: string
+  role: string
+  content: string
+  status: string
+  error: string | null
+  model: string | null
+  files: Array<{ id: string; filename: string; mimeType: string; size: number }>
+}
+
 const PLACEHOLDER_CHAT_TITLE = 'New Chat'
 const TITLE_POLL_INTERVAL_MS = 2000
 const TITLE_POLL_WINDOW_MS = 30000
@@ -67,7 +77,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   })
 
   const hasPendingMessage = chat.messages.some(
-    (m) => m.status === 'pending' || m.status === 'processing',
+    (m: MessageRow) => m.status === 'pending' || m.status === 'processing',
   )
 
   return {
@@ -121,7 +131,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       orderBy: { createdAt: 'asc' },
     })
 
-    const msgIndex = previousMessages.findIndex((m) => m.id === messageId)
+    const msgIndex = previousMessages.findIndex((m: { id: string }) => m.id === messageId)
     if (msgIndex <= 0) {
       return { error: 'No user message found' }
     }
@@ -153,7 +163,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       content: lastUserMessage.content,
       model: model || messageToRetry.model || 'gpt-4o-mini',
       systemPrompt: settings?.systemPrompt || undefined,
-      fileIds: userFiles.length > 0 ? userFiles.map((f) => f.id) : undefined,
+      fileIds: userFiles.length > 0 ? userFiles.map((f: { id: string }) => f.id) : undefined,
     })
 
     return { success: true }
@@ -222,7 +232,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       content: content.trim(),
       model,
       systemPrompt: settings?.systemPrompt || undefined,
-      fileIds: editFiles.length > 0 ? editFiles.map((f) => f.id) : undefined,
+      fileIds: editFiles.length > 0 ? editFiles.map((f: { id: string }) => f.id) : undefined,
     })
 
     return { success: true }
@@ -257,7 +267,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       select: { id: true },
     })
     if (linked.length > 0) {
-      verifiedFileIds = linked.map((f) => f.id)
+      verifiedFileIds = linked.map((f: { id: string }) => f.id)
     }
   }
 
@@ -342,7 +352,7 @@ export default function ChatPage() {
   )
 
   const pendingMessage = chat.messages.find(
-    (m) => m.status === 'pending' || m.status === 'processing',
+    (m: MessageRow) => m.status === 'pending' || m.status === 'processing',
   )
   const shouldPollForTitle =
     !chat.isTemporary &&
@@ -350,7 +360,7 @@ export default function ChatPage() {
     chat.messages.length > 0 &&
     Date.now() - new Date(chat.createdAt).getTime() < TITLE_POLL_WINDOW_MS
 
-  const lastUserMessageIndex = chat.messages.findLastIndex((m) => m.role === 'user')
+  const lastUserMessageIndex = chat.messages.findLastIndex((m: MessageRow) => m.role === 'user')
 
   useEffect(() => {
     const container = scrollContainerRef.current
@@ -505,7 +515,7 @@ export default function ChatPage() {
 
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto py-4 pb-32">
         <div className="mx-auto max-w-3xl">
-          {chat.messages.map((message, index) => {
+          {chat.messages.map((message: MessageRow, index: number) => {
             const isLastUserMessage = index === lastUserMessageIndex
 
             // If editing this message, show inline editor
