@@ -13,4 +13,7 @@ export default defineConfig({
       '~': '/app',
     },
   },
+  ssr: {
+    external: ['@chathouse/database', '@chathouse/logger'],
+  },
 })
