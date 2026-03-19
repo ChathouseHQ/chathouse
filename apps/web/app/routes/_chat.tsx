@@ -35,6 +35,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       title: true,
       pinned: true,
       updatedAt: true,
+      branchedFromId: true,
     },
     take: SIDEBAR_PAGE_SIZE + 1,
   })

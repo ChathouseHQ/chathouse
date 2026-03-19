@@ -7,6 +7,7 @@ import {
   PencilSimpleIcon,
   FileTextIcon,
   DownloadSimpleIcon,
+  GitBranchIcon,
 } from '@phosphor-icons/react'
 import { marked } from 'marked'
 import { useEffect, useMemo, useState } from 'react'
@@ -34,6 +35,7 @@ interface ChatMessageProps {
   onCopy?: () => void
   onRetry?: (messageId: string) => void
   onEdit?: (messageId: string, content: string) => void
+  onBranch?: (messageId: string) => void
   files?: MessageFile[]
 }
 
@@ -146,6 +148,7 @@ export function ChatMessage({
   onCopy,
   onRetry,
   onEdit,
+  onBranch,
   files = [],
 }: ChatMessageProps) {
   const isUser = role === 'user'
@@ -189,6 +192,10 @@ export function ChatMessage({
 
   const handleEdit = () => {
     onEdit?.(id, content)
+  }
+
+  const handleBranch = () => {
+    onBranch?.(id)
   }
 
   const handleResponseFeedback = async (feedback: ResponseFeedback) => {
@@ -318,6 +325,17 @@ export function ChatMessage({
           >
             <ArrowCounterClockwiseIcon className="h-4 w-4" />
           </button>
+
+          {status === 'complete' && onBranch && (
+            <button
+              type="button"
+              onClick={handleBranch}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600"
+              title="Branch off"
+            >
+              <GitBranchIcon className="h-4 w-4" />
+            </button>
+          )}
 
           <button
             type="button"

@@ -1,6 +1,7 @@
-import { ShareNetworkIcon } from '@phosphor-icons/react'
+import { GitBranchIcon, ShareNetworkIcon } from '@phosphor-icons/react'
 import { useState, useEffect, useRef } from 'react'
 import {
+  Link,
   redirect,
   useLoaderData,
   useNavigate,
@@ -15,6 +16,7 @@ import {
 import { ChatInput } from '~/components/ChatInput'
 import { ChatMessage } from '~/components/ChatMessage'
 import { ShareDialog } from '~/components/ShareDialog'
+import { performChatAction } from '~/lib/chat-actions'
 import { db } from '~/lib/db.server'
 import { getModelsForSelectorWithMeta } from '~/lib/models.server'
 import { addChatJob } from '~/lib/queue.server'
@@ -80,6 +82,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     (m: MessageRow) => m.status === 'pending' || m.status === 'processing',
   )
 
+  let branchedFrom: { id: string; title: string } | null = null
+  if (chat.branchedFromId) {
+    const parent = await db.chat.findUnique({
+      where: { id: chat.branchedFromId, userId: user.id },
+      select: { id: true, title: true },
+    })
+    branchedFrom = parent
+  }
+
   return {
     user,
     chat,
@@ -89,6 +100,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     connectedProviders,
     settings,
     hasPendingMessage,
+    branchedFrom,
   }
 }
 
@@ -300,7 +312,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 }
 
 export default function ChatPage() {
-  const { chat, models, connectedProviders, hasPendingMessage } = useLoaderData<typeof loader>()
+  const { chat, models, connectedProviders, hasPendingMessage, branchedFrom } =
+    useLoaderData<typeof loader>()
   const navigate = useNavigate()
   const navigation = useNavigation()
   const revalidator = useRevalidator()
@@ -497,19 +510,54 @@ export default function ChatPage() {
     setEditingContent('')
   }
 
+  const handleBranch = async (messageId: string) => {
+    try {
+      const result = await performChatAction({
+        chatId: chat.id,
+        action: 'branch',
+        messageId,
+      })
+      if (result?.chatId) {
+        navigate(`/chat/${result.chatId}`)
+      }
+    } catch (reason) {
+      alert(reason instanceof Error ? reason.message : "Couldn't branch chat. Please try again.")
+    }
+  }
+
   if (!tempChatAllowed) return null
 
   return (
     <div className="relative flex h-full flex-col bg-white">
-      <header className="hidden h-14 shrink-0 items-center justify-between border-b border-stone-200 bg-white px-4 md:flex">
-        <h1 className="truncate text-lg font-medium text-stone-800">{chat.title}</h1>
-        {!chat.isTemporary && (
-          <button
-            onClick={() => setIsShareDialogOpen(true)}
-            className="rounded-lg p-2 text-stone-500 transition-colors hover:bg-stone-100"
-          >
-            <ShareNetworkIcon className="h-5 w-5" />
-          </button>
+      <header className="hidden shrink-0 flex-col border-b border-stone-200 bg-white md:flex">
+        <div className="flex h-14 items-center justify-between px-4">
+          <h1 className="truncate text-lg font-medium text-stone-800">{chat.title}</h1>
+          {!chat.isTemporary && (
+            <button
+              onClick={() => setIsShareDialogOpen(true)}
+              className="rounded-lg p-2 text-stone-500 transition-colors hover:bg-stone-100"
+            >
+              <ShareNetworkIcon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+        {chat.branchedFromId && (
+          <div className="flex items-center gap-1.5 border-t border-stone-100 bg-stone-50 px-4 py-1.5">
+            <GitBranchIcon className="h-3.5 w-3.5 text-indigo-400" />
+            {branchedFrom ? (
+              <span className="text-xs text-stone-500">
+                Branched from:{' '}
+                <Link
+                  to={`/chat/${branchedFrom.id}`}
+                  className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+                >
+                  {branchedFrom.title}
+                </Link>
+              </span>
+            ) : (
+              <span className="text-xs text-stone-400">Branched from a deleted chat</span>
+            )}
+          </div>
         )}
       </header>
 
@@ -611,6 +659,7 @@ export default function ChatPage() {
                 isStreaming={isMessageStreaming}
                 onRetry={handleRetry}
                 onEdit={handleEdit}
+                onBranch={handleBranch}
                 files={message.files}
               />
             )

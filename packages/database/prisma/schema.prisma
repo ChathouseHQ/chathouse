@@ -86,19 +86,23 @@ model EnabledModel {
 }
 
 model Chat {
-  id          String   @id @default(uuid())
-  userId      String
-  title       String   @default("New Chat")
-  pinned      Boolean  @default(false)
-  isTemporary Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(uuid())
+  userId         String
+  title          String   @default("New Chat")
+  pinned         Boolean  @default(false)
+  isTemporary    Boolean  @default(false)
+  branchedFromId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages    Message[]
-  sharedLinks SharedLink[]
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branchedFrom Chat?        @relation("ChatBranches", fields: [branchedFromId], references: [id], onDelete: SetNull)
+  branches     Chat[]       @relation("ChatBranches")
+  messages     Message[]
+  sharedLinks  SharedLink[]
 
   @@index([userId])
+  @@index([branchedFromId])
   @@map("chats")
 }
 

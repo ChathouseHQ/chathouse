@@ -8,10 +8,16 @@ type ChatActionPayload =
       action: 'rename'
       title: string
     }
+  | {
+      chatId: string
+      action: 'branch'
+      messageId: string
+    }
 
 type ChatActionResponse = {
   error?: string
   success?: boolean
+  chatId?: string
 }
 
 export async function performChatAction(payload: ChatActionPayload) {

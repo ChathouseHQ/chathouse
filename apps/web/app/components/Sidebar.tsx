@@ -6,6 +6,7 @@ import {
   DotsThreeVerticalIcon,
   FileTextIcon,
   GearIcon,
+  GitBranchIcon,
   GithubLogoIcon,
   PencilSimpleIcon,
   PlusIcon,
@@ -34,6 +35,7 @@ interface Chat {
   title: string
   pinned: boolean
   updatedAt: string | Date
+  branchedFromId?: string | null
 }
 
 interface User {
@@ -407,6 +409,7 @@ function ChatItem({ chat, isActive }: { chat: Chat; isActive: boolean }) {
         {chat.pinned && (
           <BookmarkSimpleIcon className="h-3 w-3 shrink-0 text-amber-500" weight="fill" />
         )}
+        {chat.branchedFromId && <GitBranchIcon className="h-3 w-3 shrink-0 text-indigo-400" />}
         <span className="flex-1 truncate">{chat.title}</span>
         <button
           ref={buttonRef}

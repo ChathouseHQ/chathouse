@@ -18,6 +18,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       pinned: true,
       updatedAt: true,
       createdAt: true,
+      branchedFromId: true,
       _count: { select: { messages: true } },
     },
     take: limit + 1,
