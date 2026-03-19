@@ -10,6 +10,7 @@ COPY apps/worker/package.json apps/worker/
 COPY packages/database/package.json packages/database/
 COPY packages/database/prisma packages/database/prisma
 COPY packages/database/prisma.config.ts packages/database/
+COPY packages/logger/package.json packages/logger/
 RUN npm ci
 
 # Copy source and build
@@ -28,6 +29,7 @@ COPY apps/worker/package.json apps/worker/
 COPY packages/database/package.json packages/database/
 COPY packages/database/prisma packages/database/prisma
 COPY packages/database/prisma.config.ts packages/database/
+COPY packages/logger/package.json packages/logger/
 RUN npm ci --omit=dev
 
 # Copy built assets and generated Prisma client
@@ -35,6 +37,7 @@ COPY --from=builder /app/apps/web/build apps/web/build
 COPY --from=builder /app/apps/worker/dist apps/worker/dist
 COPY --from=builder /app/packages/database/dist packages/database/dist
 COPY --from=builder /app/packages/database/generated packages/database/generated
+COPY --from=builder /app/packages/logger/dist packages/logger/dist
 
 # Create data directory
 RUN mkdir -p data/uploads
