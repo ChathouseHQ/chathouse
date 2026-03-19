@@ -1,27 +1,9 @@
-import type { LinksFunction } from 'react-router'
-
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router'
 import { Toaster } from 'sonner'
 
 import './styles/tailwind.css'
 import Analytics from './components/Analytics'
 import VersionCheck from './components/VersionCheck'
-
-export const links: LinksFunction = () => [
-  {
-    rel: 'preconnect',
-    href: 'https://fonts.googleapis.com',
-  },
-  {
-    rel: 'preconnect',
-    href: 'https://fonts.gstatic.com',
-    crossOrigin: 'anonymous',
-  },
-  {
-    rel: 'stylesheet',
-    href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap',
-  },
-]
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
