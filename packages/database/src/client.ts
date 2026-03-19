@@ -1,6 +1,8 @@
 import { PrismaMariaDb } from '@prisma/adapter-mariadb'
+import { createRequire } from 'node:module'
 
-import { PrismaClient } from '../generated/prisma/client.js'
+const require = createRequire(import.meta.url)
+const { PrismaClient } = require('../generated/prisma/client.js')
 
 export function parseConnectionString(connectionString: string) {
   const url = new URL(connectionString)
