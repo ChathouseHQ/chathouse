@@ -322,9 +322,7 @@ export function ChatInput({
               ? 'border-slate-600 bg-slate-800 focus-within:border-slate-500'
               : 'border-surface-200 focus-within:border-surface-400 bg-white',
             isDragging &&
-              (isTemporary
-                ? 'border-slate-400 bg-slate-700'
-                : 'border-primary-400 bg-primary-50'),
+              (isTemporary ? 'border-slate-400 bg-slate-700' : 'border-primary-400 bg-primary-50'),
           )}
         >
           {isDragging && (

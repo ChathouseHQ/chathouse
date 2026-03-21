@@ -528,7 +528,7 @@ export default function ChatPage() {
   if (!tempChatAllowed) return null
 
   return (
-    <div className="relative flex h-full flex-col bg-white">
+    <div className="relative flex h-full min-w-0 flex-col bg-white">
       <header className="hidden shrink-0 flex-col border-b border-stone-200 bg-white md:flex">
         <div className="flex h-14 items-center justify-between px-4">
           <h1 className="truncate text-lg font-medium text-stone-800">{chat.title}</h1>
@@ -561,8 +561,11 @@ export default function ChatPage() {
         )}
       </header>
 
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto py-4 pb-32">
-        <div className="mx-auto max-w-3xl">
+      <div
+        ref={scrollContainerRef}
+        className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto py-4 pb-32"
+      >
+        <div className="mx-auto w-full max-w-3xl min-w-0">
           {chat.messages.map((message: MessageRow, index: number) => {
             const isLastUserMessage = index === lastUserMessageIndex
 
@@ -575,7 +578,7 @@ export default function ChatPage() {
                   className="px-4 py-3"
                 >
                   <div className="flex justify-end">
-                    <div className="w-full max-w-[75%]">
+                    <div className="w-full max-w-full md:max-w-[75%]">
                       <fetcher.Form method="post">
                         <input type="hidden" name="action" value="edit" />
                         <input type="hidden" name="messageId" value={message.id} />

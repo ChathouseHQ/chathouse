@@ -235,7 +235,7 @@ export function ChatMessage({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="flex max-w-[85%] flex-col items-end gap-1">
+        <div className="flex w-full max-w-full min-w-0 flex-col items-end gap-1 md:max-w-[85%]">
           {files.length > 0 && (
             <div className="mb-1">
               <FileAttachments files={files} />
@@ -279,7 +279,7 @@ export function ChatMessage({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex max-w-[85%] flex-col items-start gap-1">
+      <div className="flex w-full max-w-full min-w-0 flex-col items-start gap-1 md:max-w-[85%]">
         {isPending && isLatest && !isStreaming ? (
           <div className="flex items-center gap-2 text-stone-600">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-stone-600" />
@@ -290,7 +290,7 @@ export function ChatMessage({
             {error && <p className="mt-1 opacity-75">{error}</p>}
           </Alert>
         ) : (
-          <div className="prose prose-stone prose-sm max-w-none text-stone-800">
+          <div className="prose prose-stone prose-sm w-full max-w-none min-w-0 text-stone-800">
             {renderedContent ? (
               <div
                 className="markdown-content"

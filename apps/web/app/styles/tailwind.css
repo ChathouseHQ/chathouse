@@ -182,6 +182,8 @@
 .markdown-content {
   font-size: 0.9375rem;
   line-height: 1.7;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .markdown-content h1 {
@@ -254,6 +256,7 @@
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
   padding: 1rem;
+  max-width: 100%;
   background-color: #1c1917;
   border-radius: 0.5rem;
   overflow-x: auto;
