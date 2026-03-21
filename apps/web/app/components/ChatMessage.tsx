@@ -154,7 +154,6 @@ export function ChatMessage({
   const isUser = role === 'user'
   const isPending = status === 'pending' || status === 'processing'
   const isError = status === 'error'
-  const [isHovered, setIsHovered] = useState(false)
   const [copySuccess, setCopySuccess] = useState(false)
   const [responseFeedback, setResponseFeedback] = useState<ResponseFeedback | null>(null)
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false)
@@ -230,11 +229,7 @@ export function ChatMessage({
 
   if (isUser) {
     return (
-      <div
-        className="group message-animate flex justify-end px-4 py-3"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+      <div className="group message-animate flex justify-end px-4 py-3">
         <div className="flex w-full max-w-full min-w-0 flex-col items-end gap-1 md:max-w-[85%]">
           {files.length > 0 && (
             <div className="mb-1">
@@ -249,8 +244,7 @@ export function ChatMessage({
 
           <div
             className={cn(
-              'flex items-center gap-0.5 transition-opacity group-hover:opacity-100 md:opacity-0',
-              isHovered ? 'opacity-100' : 'opacity-0',
+              'flex items-center gap-0.5 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100',
             )}
           >
             <button
@@ -274,11 +268,7 @@ export function ChatMessage({
   }
 
   return (
-    <div
-      className="group message-animate flex justify-start px-4 py-3"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="group message-animate flex justify-start px-4 py-3">
       <div className="flex w-full max-w-full min-w-0 flex-col items-start gap-1 md:max-w-[85%]">
         {isPending && isLatest && !isStreaming ? (
           <div className="flex items-center gap-2 text-stone-600">
@@ -305,8 +295,7 @@ export function ChatMessage({
 
         <div
           className={cn(
-            'flex items-center gap-0.5 pb-2 transition-opacity group-hover:opacity-100 md:opacity-0',
-            isHovered ? 'opacity-100' : 'opacity-0',
+            'flex items-center gap-0.5 pb-2 transition-opacity md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100',
           )}
         >
           <button
@@ -351,7 +340,7 @@ export function ChatMessage({
             )}
             title={responseFeedback === 'good' ? 'Feedback sent' : 'Good response'}
           >
-            {responseFeedback === 'good' && isHovered ? (
+            {responseFeedback === 'good' ? (
               <CheckIcon className="h-4 w-4" />
             ) : (
               <ThumbsUpIcon className="h-4 w-4" />
@@ -372,7 +361,7 @@ export function ChatMessage({
             )}
             title={responseFeedback === 'bad' ? 'Feedback sent' : 'Bad response'}
           >
-            {responseFeedback === 'bad' && isHovered ? (
+            {responseFeedback === 'bad' ? (
               <CheckIcon className="h-4 w-4" />
             ) : (
               <ThumbsDownIcon className="h-4 w-4" />
