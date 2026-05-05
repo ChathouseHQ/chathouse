@@ -2,12 +2,13 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { decrypt, getModelMetadata, type Provider, type ReasoningLevel } from '@chathouse/database'
-import { streamText, type ModelMessage, type UserContent } from 'ai'
+import { stepCountIs, streamText, type ModelMessage, type UserContent } from 'ai'
 import { existsSync } from 'fs'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
 import { db, redis } from './config.js'
+import { buildWebSearchTools } from './tools/web-search.js'
 
 function resolveUploadDir(): string {
   if (process.env.UPLOAD_DIR) return process.env.UPLOAD_DIR
@@ -35,6 +36,12 @@ const BASE_SYSTEM_PROMPT = `You are a helpful AI assistant. When responding:
 - Use headers (##, ###) to organize longer responses
 - Use > for quotes when relevant
 - Keep responses concise but comprehensive`
+
+const WEB_SEARCH_SYSTEM_PROMPT = [
+  '',
+  '',
+  'Web search is available through the web_search tool. Use it when the answer depends on current, fast-changing, source-sensitive, or precisely attributable information. Do not search for simple stable facts, creative writing, or information already provided by the user. When web search influenced the answer, cite the source URLs in markdown. If search fails or returns no relevant results, say that briefly instead of inventing evidence.',
+].join('\n')
 
 export function isOpenAIModelId(modelId: string): boolean {
   const id = modelId.toLowerCase()
@@ -231,9 +238,11 @@ export async function streamAIResponse(
   const apiKey = await getApiKey(userId, provider)
   if (!apiKey) throw new Error(`No API key configured for ${provider}`)
 
+  const tools = buildWebSearchTools()
+  const webSearchPrompt = tools ? WEB_SEARCH_SYSTEM_PROMPT : ''
   const combinedSystemPrompt = userSystemPrompt
-    ? `${BASE_SYSTEM_PROMPT}\n\nAdditional instructions from user:\n${userSystemPrompt}`
-    : BASE_SYSTEM_PROMPT
+    ? `${BASE_SYSTEM_PROMPT}${webSearchPrompt}\n\nAdditional instructions from user:\n${userSystemPrompt}`
+    : `${BASE_SYSTEM_PROMPT}${webSearchPrompt}`
 
   const allMessages = [{ role: 'system' as const, content: combinedSystemPrompt }, ...messages]
 
@@ -261,7 +270,18 @@ export async function streamAIResponse(
   let fullContent = ''
 
   try {
-    const result = streamText({ model, messages: allMessages, providerOptions })
+    const result = streamText({
+      model,
+      messages: allMessages,
+      providerOptions,
+      ...(tools
+        ? {
+            tools,
+            toolChoice: 'auto' as const,
+            stopWhen: stepCountIs(4),
+          }
+        : {}),
+    })
 
     for await (const chunk of result.textStream) {
       fullContent += chunk
