@@ -8,6 +8,9 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 
 import { db, redis } from './config.js'
+import { buildCalculatorTools } from './tools/calculator.js'
+import { buildDateTimeTools } from './tools/date-time.js'
+import { buildPageReaderTools } from './tools/page-reader.js'
 import {
   buildWebSearchTools,
   type WebSearchError,
@@ -42,10 +45,10 @@ const BASE_SYSTEM_PROMPT = `You are a helpful AI assistant. When responding:
 - Use > for quotes when relevant
 - Keep responses concise but comprehensive`
 
-const WEB_SEARCH_SYSTEM_PROMPT = [
+const TOOL_SYSTEM_PROMPT = [
   '',
   '',
-  'Web search is available through the web_search tool. Use it when the answer depends on current, fast-changing, source-sensitive, or precisely attributable information. Do not search for simple stable facts, creative writing, or information already provided by the user. When web search influenced the answer, cite the source URLs in markdown. If search fails or returns no relevant results, say that briefly instead of inventing evidence.',
+  'Tools are available for web research, page reading, exact arithmetic, unit conversion, and date/time work. Use tools when they improve accuracy: search the web for current, fast-changing, source-sensitive, or precisely attributable information; open specific public URLs when the user provides a link or a search result needs closer reading; use calculator/date tools for exact math, conversions, current time, and calendar calculations. Do not use tools for simple stable facts, creative writing, or information already provided by the user. When web search or page reading influenced the answer, cite the source URLs in markdown. If a tool fails or returns no relevant results, say that briefly instead of inventing evidence.',
 ].join('\n')
 
 export function isOpenAIModelId(modelId: string): boolean {
@@ -143,7 +146,7 @@ interface StreamChunk {
   webSearch?: WebSearchActivity
 }
 
-export interface WebSearchActivity {
+interface WebSearchActivity {
   id: string
   query: string
   status: 'searching' | 'complete' | 'error'
@@ -239,7 +242,7 @@ function usesAnthropicAdaptiveThinking(modelId: string): boolean {
   )
 }
 
-export async function saveMessageWebSearches(
+async function saveMessageWebSearches(
   messageId: string,
   webSearches: WebSearchActivity[],
 ): Promise<void> {
@@ -308,11 +311,16 @@ export async function streamAIResponse(
     }
   }
 
-  const tools = buildWebSearchTools({ onEvent: publishWebSearch })
-  const webSearchPrompt = tools ? WEB_SEARCH_SYSTEM_PROMPT : ''
+  const webSearchTools = buildWebSearchTools({ onEvent: publishWebSearch })
+  const tools = {
+    ...buildCalculatorTools(),
+    ...buildDateTimeTools(),
+    ...buildPageReaderTools(),
+    ...(webSearchTools ?? {}),
+  }
   const combinedSystemPrompt = userSystemPrompt
-    ? `${BASE_SYSTEM_PROMPT}${webSearchPrompt}\n\nAdditional instructions from user:\n${userSystemPrompt}`
-    : `${BASE_SYSTEM_PROMPT}${webSearchPrompt}`
+    ? `${BASE_SYSTEM_PROMPT}${TOOL_SYSTEM_PROMPT}\n\nAdditional instructions from user:\n${userSystemPrompt}`
+    : `${BASE_SYSTEM_PROMPT}${TOOL_SYSTEM_PROMPT}`
 
   const allMessages = [{ role: 'system' as const, content: combinedSystemPrompt }, ...messages]
 
@@ -343,13 +351,9 @@ export async function streamAIResponse(
       model,
       messages: allMessages,
       providerOptions,
-      ...(tools
-        ? {
-            tools,
-            toolChoice: 'auto' as const,
-            stopWhen: stepCountIs(4),
-          }
-        : {}),
+      tools,
+      toolChoice: 'auto',
+      stopWhen: stepCountIs(6),
     })
 
     for await (const chunk of result.textStream) {

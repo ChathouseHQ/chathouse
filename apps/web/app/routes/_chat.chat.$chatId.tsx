@@ -15,6 +15,7 @@ import {
 } from 'react-router'
 
 import type { ReasoningLevel } from '~/lib/models'
+import type { WebSearchActivity } from '~/lib/web-searches'
 
 import { ChatInput } from '~/components/ChatInput'
 import { ChatMessage } from '~/components/ChatMessage'
@@ -24,7 +25,6 @@ import { db } from '~/lib/db.server'
 import { getModelsForSelectorWithMeta } from '~/lib/models.server'
 import { addChatJob } from '~/lib/queue.server'
 import { requireAuth } from '~/lib/session.server'
-import type { WebSearchActivity } from '~/lib/web-searches'
 import { attachWebSearchesToMessages } from '~/lib/web-searches.server'
 
 interface MessageRow {

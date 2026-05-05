@@ -1,9 +1,10 @@
 import { ChatCircleIcon } from '@phosphor-icons/react'
 import { Link, useLoaderData, type LoaderFunctionArgs, type MetaFunction } from 'react-router'
 
+import type { WebSearchActivity } from '~/lib/web-searches'
+
 import { ChatMessage } from '~/components/ChatMessage'
 import { db } from '~/lib/db.server'
-import type { WebSearchActivity } from '~/lib/web-searches'
 import { attachWebSearchesToMessages } from '~/lib/web-searches.server'
 
 interface SharedMessage {

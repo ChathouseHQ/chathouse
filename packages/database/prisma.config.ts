@@ -25,7 +25,10 @@ function resolveShadowDatabaseUrl(databaseUrl?: string) {
   const localComposePort = process.env.MARIADB_PORT || '3307'
   const localComposeHosts = new Set(['localhost', '127.0.0.1', '[::1]'])
 
-  if (!process.env.MARIADB_SHADOW_DATABASE && (!localComposeHosts.has(url.hostname) || url.port !== localComposePort)) {
+  if (
+    !process.env.MARIADB_SHADOW_DATABASE &&
+    (!localComposeHosts.has(url.hostname) || url.port !== localComposePort)
+  ) {
     return undefined
   }
 

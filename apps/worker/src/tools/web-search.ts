@@ -1,9 +1,9 @@
 import { jsonSchema, tool } from 'ai'
 
-export type WebSearchFreshness = 'day' | 'week' | 'month' | 'year'
-export type WebSearchContextSize = 'small' | 'standard' | 'large'
+type WebSearchFreshness = 'day' | 'week' | 'month' | 'year'
+type WebSearchContextSize = 'small' | 'standard' | 'large'
 
-export interface WebSearchInput {
+interface WebSearchInput {
   query: string
   freshness?: WebSearchFreshness
   contextSize?: WebSearchContextSize
@@ -23,15 +23,18 @@ export interface WebSearchError {
   status?: number
 }
 
-export interface WebSearchOutput {
+interface WebSearchOutput {
   query: string
   sources: WebSearchSource[]
   error?: WebSearchError
 }
 
-export interface WebSearchToolEvent extends WebSearchOutput {
+export interface WebSearchToolEvent {
   id: string
   status: 'searching' | 'complete' | 'error'
+  query: string
+  sources: WebSearchSource[]
+  error?: WebSearchError
 }
 
 interface BraveLlmContextResponse {
@@ -335,7 +338,7 @@ export function buildWebSearchTools({
   }
 }
 
-export function normalizeWebSearchQuery(query: string): string {
+function normalizeWebSearchQuery(query: string): string {
   return query
     .replace(/\s+/g, ' ')
     .trim()

@@ -39,9 +39,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       start(controller) {
         if (webSearches.length > 0) {
           controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: 'webSearches', webSearches })}\n\n`,
-            ),
+            encoder.encode(`data: ${JSON.stringify({ type: 'webSearches', webSearches })}\n\n`),
           )
         }
         controller.enqueue(
@@ -69,9 +67,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       start(controller) {
         if (webSearches.length > 0) {
           controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: 'webSearches', webSearches })}\n\n`,
-            ),
+            encoder.encode(`data: ${JSON.stringify({ type: 'webSearches', webSearches })}\n\n`),
           )
         }
         controller.enqueue(

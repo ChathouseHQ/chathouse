@@ -38,9 +38,10 @@ import { Marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import { useEffect, useMemo, useState } from 'react'
 
+import type { WebSearchActivity, WebSearchSource } from '~/lib/web-searches'
+
 import { trackEvent } from '~/components/Analytics'
 import { cn, formatFileSize } from '~/lib/utils'
-import type { WebSearchActivity, WebSearchSource } from '~/lib/web-searches'
 import { Alert, Modal, Text } from '~/ui'
 
 interface MessageFile {
