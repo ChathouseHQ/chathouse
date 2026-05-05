@@ -1,4 +1,11 @@
-import { MagnifyingGlassIcon, StarIcon, ArrowsClockwiseIcon, CpuIcon } from '@phosphor-icons/react'
+import {
+  MagnifyingGlassIcon,
+  StarIcon,
+  ArrowsClockwiseIcon,
+  CpuIcon,
+  EyeIcon,
+  BrainIcon,
+} from '@phosphor-icons/react'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   Link,
@@ -10,7 +17,7 @@ import {
 } from 'react-router'
 
 import { db } from '~/lib/db.server'
-import { type Provider } from '~/lib/models'
+import { type ModelFeature, type PriceTier, type Provider, type ReasoningLevel } from '~/lib/models'
 import {
   getUserModelSettings,
   toggleModelEnabled,
@@ -128,6 +135,24 @@ function ProviderToggle({
   )
 }
 
+const FEATURE_ICONS: Record<ModelFeature, { icon: typeof EyeIcon; label: string }> = {
+  vision: { icon: EyeIcon, label: 'Vision' },
+  reasoning: { icon: BrainIcon, label: 'Reasoning' },
+}
+
+function PriceTierBadge({ tier }: { tier: PriceTier }) {
+  const colorClass =
+    tier === '$$$$'
+      ? 'text-red-500'
+      : tier === '$$$'
+        ? 'text-amber-500'
+        : tier === '$$'
+          ? 'text-emerald-500'
+          : 'text-surface-400'
+
+  return <span className={cn('text-[10px] leading-none font-semibold', colorClass)}>{tier}</span>
+}
+
 function ModelRow({
   model,
   setting,
@@ -139,6 +164,10 @@ function ModelRow({
     provider: Provider
     description?: string
     contextWindow?: number
+    priceTier?: PriceTier
+    features?: ModelFeature[]
+    reasoningLevels?: ReasoningLevel[]
+    versionLabel?: string
   }
   setting: UserModelSetting
   isConnected: boolean
@@ -160,6 +189,7 @@ function ModelRow({
       : setting.favorite
 
   const isLoading = fetcher.state !== 'idle'
+  const hasFeatures = model.features && model.features.length > 0
 
   return (
     <div
@@ -173,14 +203,46 @@ function ModelRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <Text weight="medium" className={cn(!isEnabled && 'text-surface-500')}>
+          <Text weight="medium" truncate className={cn(!isEnabled && 'text-surface-500')}>
             {model.name}
           </Text>
+          {model.versionLabel && (
+            <Text size="xs" colour="muted" className="shrink-0">
+              ({model.versionLabel})
+            </Text>
+          )}
+          {model.priceTier && <PriceTierBadge tier={model.priceTier} />}
           {isFavorite && <StarIcon className="h-3.5 w-3.5 text-amber-400" weight="fill" />}
         </div>
-        <Text size="xs" colour="muted" truncate className="mt-0.5">
-          {model.id}
-        </Text>
+        <div className="mt-0.5 flex min-w-0 items-center gap-2">
+          <Text size="xs" colour="muted" truncate>
+            {model.description || model.id}
+          </Text>
+          {hasFeatures && (
+            <span className="flex shrink-0 items-center gap-0.5">
+              {model.features!.map((feature) => {
+                const info = FEATURE_ICONS[feature]
+                if (!info) return null
+                const Icon = info.icon
+                return (
+                  <span key={feature} title={info.label} className="text-surface-300">
+                    <Icon className="h-3 w-3" />
+                  </span>
+                )
+              })}
+            </span>
+          )}
+          {model.reasoningLevels && model.reasoningLevels.length > 0 && (
+            <Text size="xs" colour="muted" className="hidden shrink-0 md:inline">
+              {model.reasoningLevels.join('/')}
+            </Text>
+          )}
+        </div>
+        {model.description && (
+          <Text size="xs" colour="muted" truncate className="mt-0.5">
+            {model.id}
+          </Text>
+        )}
       </div>
 
       {model.contextWindow && (
@@ -276,11 +338,8 @@ export default function ModelsSettingsPage() {
 
   const allModels = useMemo(() => {
     return cachedModels.map((model) => ({
-      id: model.id,
-      name: model.name,
+      ...model,
       provider: model.provider as Provider,
-      description: undefined,
-      contextWindow: undefined,
     }))
   }, [cachedModels])
 

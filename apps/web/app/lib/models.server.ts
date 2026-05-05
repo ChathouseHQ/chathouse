@@ -1,7 +1,18 @@
-import type { Provider } from '@chathouse/database'
+import { type Provider, getModelMetadataMatch } from '@chathouse/database'
 
 import { db } from './db.server'
 import { type ModelInfo } from './models'
+
+function formatModelVariant(modelId: string, matchedKey: string): string | undefined {
+  const suffix = modelId.slice(matchedKey.length).replace(/^[-_.:/]+/, '')
+  if (!suffix) return undefined
+
+  if (/^\d{8}$/.test(suffix)) {
+    return `${suffix.slice(0, 4)}-${suffix.slice(4, 6)}-${suffix.slice(6, 8)}`
+  }
+
+  return suffix.replace(/[-_.:/]+/g, ' ')
+}
 
 export interface UserModelSetting {
   modelId: string
@@ -16,6 +27,29 @@ export interface EnrichedModel extends ModelInfo {
   customName: string | null
 }
 
+type CachedModelRow = { modelId: string; provider: string; name: string }
+
+function enrichCachedModel(model: CachedModelRow): ModelInfo {
+  const metaMatch = getModelMetadataMatch(model.modelId)
+  const meta = metaMatch?.metadata
+
+  return {
+    id: model.modelId,
+    provider: model.provider as Provider,
+    name: meta?.displayName ?? model.name,
+    versionLabel:
+      metaMatch && !metaMatch.isExact
+        ? formatModelVariant(model.modelId, metaMatch.key)
+        : undefined,
+    contextWindow: meta?.contextWindow,
+    description: meta?.description,
+    knowledgeCutoff: meta?.knowledgeCutoff,
+    priceTier: meta?.priceTier,
+    features: meta?.features,
+    reasoningLevels: meta?.reasoningLevels,
+  }
+}
+
 async function getConnectedProviders(userId: string): Promise<Set<Provider>> {
   const apiKeys = await db.apiKey.findMany({
     where: { userId },
@@ -25,7 +59,7 @@ async function getConnectedProviders(userId: string): Promise<Set<Provider>> {
 }
 
 export async function getCachedModels(userId: string): Promise<{
-  models: Array<{ id: string; provider: Provider; name: string }>
+  models: ModelInfo[]
   lastRefresh: Date | null
 }> {
   const cachedModels = await db.cachedModel.findMany({
@@ -36,11 +70,7 @@ export async function getCachedModels(userId: string): Promise<{
   const lastRefresh = cachedModels.length > 0 ? cachedModels[0].fetchedAt : null
 
   return {
-    models: cachedModels.map((m: { modelId: string; provider: string; name: string }) => ({
-      id: m.modelId,
-      provider: m.provider as Provider,
-      name: m.name,
-    })),
+    models: cachedModels.map((m: CachedModelRow) => enrichCachedModel(m)),
     lastRefresh,
   }
 }
@@ -60,16 +90,30 @@ async function getEnabledModels(userId: string): Promise<EnrichedModel[]> {
     const setting = settingsMap.get(m.id)
     return {
       ...m,
-      contextWindow: 0,
-      description: '',
+      contextWindow: m.contextWindow ?? 0,
+      description: m.description ?? '',
       enabled: setting?.enabled ?? true,
       favorite: setting?.favorite ?? false,
       customName: setting?.customName ?? null,
     }
   })
 
+  const duplicateNameCounts = new Map<string, number>()
+  for (const model of models) {
+    const key = `${model.provider}:${model.customName || model.name}`
+    duplicateNameCounts.set(key, (duplicateNameCounts.get(key) ?? 0) + 1)
+  }
+
+  const disambiguatedModels = models.map((model) => {
+    const key = `${model.provider}:${model.customName || model.name}`
+    if ((duplicateNameCounts.get(key) ?? 0) < 2) {
+      return { ...model, versionLabel: undefined }
+    }
+    return model
+  })
+
   // Sort: favorites first, then by provider, then by name
-  return models.toSorted((a, b) => {
+  return disambiguatedModels.toSorted((a, b) => {
     if (a.favorite !== b.favorite) return b.favorite ? 1 : -1
     if (a.provider !== b.provider) return a.provider.localeCompare(b.provider)
     return a.name.localeCompare(b.name)
