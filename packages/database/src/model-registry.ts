@@ -1,7 +1,5 @@
 import type { Provider, ReasoningLevel } from './types.js'
 
-export type { ReasoningLevel }
-
 export type ModelFeature = 'vision' | 'reasoning'
 
 export type PriceTier = 'free' | '$' | '$$' | '$$$' | '$$$$'
