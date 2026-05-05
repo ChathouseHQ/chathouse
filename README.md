@@ -38,7 +38,6 @@ We are building Chathouse to make interacting with Large Language Models simple,
 Planned features:
 
 - Memories
-- Branching
 - Personalisation
 - Voice input & output
 - Tools (e.g. web search)
