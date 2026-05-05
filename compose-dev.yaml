@@ -4,12 +4,14 @@ services:
     environment:
       - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD:-rootpassword}
       - MARIADB_DATABASE=${MARIADB_DATABASE:-chathouse}
+      - MARIADB_SHADOW_DATABASE=${MARIADB_SHADOW_DATABASE:-chathouse_shadow}
       - MARIADB_USER=${MARIADB_USER:-chathouse}
       - MARIADB_PASSWORD=${MARIADB_PASSWORD:-chathouse}
     ports:
       - '${MARIADB_PORT:-3307}:3306'
     volumes:
       - mariadb_data:/var/lib/mysql
+      - ./docker/mariadb/init-shadow-db.sh:/docker-entrypoint-initdb.d/10-init-shadow-db.sh:ro
     healthcheck:
       test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
       interval: 5s

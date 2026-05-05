@@ -1,15 +1,15 @@
 import { jsonSchema, tool } from 'ai'
 
-type WebSearchFreshness = 'day' | 'week' | 'month' | 'year'
-type WebSearchContextSize = 'small' | 'standard' | 'large'
+export type WebSearchFreshness = 'day' | 'week' | 'month' | 'year'
+export type WebSearchContextSize = 'small' | 'standard' | 'large'
 
-interface WebSearchInput {
+export interface WebSearchInput {
   query: string
   freshness?: WebSearchFreshness
   contextSize?: WebSearchContextSize
 }
 
-interface WebSearchSource {
+export interface WebSearchSource {
   title: string
   url: string
   hostname: string
@@ -17,16 +17,21 @@ interface WebSearchSource {
   snippets: string[]
 }
 
-interface WebSearchError {
+export interface WebSearchError {
   code: string
   message: string
   status?: number
 }
 
-interface WebSearchOutput {
+export interface WebSearchOutput {
   query: string
   sources: WebSearchSource[]
   error?: WebSearchError
+}
+
+export interface WebSearchToolEvent extends WebSearchOutput {
+  id: string
+  status: 'searching' | 'complete' | 'error'
 }
 
 interface BraveLlmContextResponse {
@@ -134,7 +139,7 @@ const webSearchInputSchema = jsonSchema<WebSearchInput>({
 })
 
 export function buildBraveLlmContextUrl(input: WebSearchInput): URL {
-  const query = normalizeQuery(input.query)
+  const query = normalizeWebSearchQuery(input.query)
   const contextSize = input.contextSize ?? 'standard'
   const params = CONTEXT_SIZE_PARAMS[contextSize]
   const url = new URL(BRAVE_LLM_CONTEXT_URL)
@@ -195,7 +200,7 @@ export async function searchBraveLlmContext(
   input: WebSearchInput,
   options: BraveSearchRequestOptions,
 ): Promise<WebSearchOutput> {
-  const query = normalizeQuery(input.query)
+  const query = normalizeWebSearchQuery(input.query)
 
   if (!query) {
     return {
@@ -266,10 +271,12 @@ export function createWebSearchTool({
   apiKey,
   fetchFn,
   maxCalls = MAX_WEB_SEARCH_CALLS,
+  onEvent,
 }: {
   apiKey: string
   fetchFn?: typeof fetch
   maxCalls?: number
+  onEvent?: (event: WebSearchToolEvent) => Promise<void> | void
 }) {
   let calls = 0
 
@@ -278,37 +285,57 @@ export function createWebSearchTool({
       'Search the public web for current, source-sensitive, or fast-changing information. Use this before answering questions that need up-to-date facts, recent events, prices, releases, schedules, laws, or precise source attribution.',
     inputSchema: webSearchInputSchema,
     execute: async (input, options): Promise<WebSearchOutput> => {
+      const query = normalizeWebSearchQuery(input.query)
+
       if (calls >= maxCalls) {
-        return {
-          query: normalizeQuery(input.query),
+        const output = {
+          query,
           sources: [],
           error: {
             code: 'call_budget_exceeded',
             message: `The per-response web search budget of ${maxCalls} calls has been used.`,
           },
         }
+        await onEvent?.({ id: options.toolCallId, status: 'error', ...output })
+        return output
       }
 
       calls += 1
-      return searchBraveLlmContext(input, {
+      await onEvent?.({ id: options.toolCallId, status: 'searching', query, sources: [] })
+
+      const output = await searchBraveLlmContext(input, {
         apiKey,
         fetchFn,
         abortSignal: options.abortSignal,
       })
+
+      await onEvent?.({
+        id: options.toolCallId,
+        status: output.error ? 'error' : 'complete',
+        ...output,
+      })
+
+      return output
     },
   })
 }
 
-export function buildWebSearchTools(apiKey = process.env.BRAVE_SEARCH_API_KEY) {
+export function buildWebSearchTools({
+  apiKey = process.env.BRAVE_SEARCH_API_KEY,
+  onEvent,
+}: {
+  apiKey?: string
+  onEvent?: (event: WebSearchToolEvent) => Promise<void> | void
+} = {}) {
   const trimmedKey = apiKey?.trim()
   if (!trimmedKey) return undefined
 
   return {
-    web_search: createWebSearchTool({ apiKey: trimmedKey }),
+    web_search: createWebSearchTool({ apiKey: trimmedKey, onEvent }),
   }
 }
 
-function normalizeQuery(query: string): string {
+export function normalizeWebSearchQuery(query: string): string {
   return query
     .replace(/\s+/g, ' ')
     .trim()

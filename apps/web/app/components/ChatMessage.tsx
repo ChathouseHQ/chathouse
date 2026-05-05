@@ -8,6 +8,10 @@ import {
   FileTextIcon,
   DownloadSimpleIcon,
   GitBranchIcon,
+  MagnifyingGlassIcon,
+  CaretDownIcon,
+  WarningIcon,
+  LinkIcon,
 } from '@phosphor-icons/react'
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -36,6 +40,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { trackEvent } from '~/components/Analytics'
 import { cn, formatFileSize } from '~/lib/utils'
+import type { WebSearchActivity, WebSearchSource } from '~/lib/web-searches'
 import { Alert, Modal, Text } from '~/ui'
 
 interface MessageFile {
@@ -59,6 +64,7 @@ interface ChatMessageProps {
   onEdit?: (messageId: string, content: string) => void
   onBranch?: (messageId: string) => void
   files?: MessageFile[]
+  webSearches?: WebSearchActivity[]
 }
 
 type ResponseFeedback = 'good' | 'bad'
@@ -190,6 +196,124 @@ function FileAttachments({ files }: { files: MessageFile[] }) {
   )
 }
 
+function safeSourceUrl(url: string): string | undefined {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? url : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function WebSearchSourceItem({ source }: { source: WebSearchSource }) {
+  const href = safeSourceUrl(source.url)
+  const title = source.title || source.hostname || source.url
+  const snippets = source.snippets.slice(0, 2)
+
+  return (
+    <li className="border-surface-200 rounded-lg border bg-white px-3 py-2">
+      <div className="flex min-w-0 items-start gap-2">
+        <LinkIcon className="text-surface-400 mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <div className="min-w-0 flex-1">
+          {href ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-surface-800 hover:text-primary-700 block truncate text-sm font-medium hover:underline"
+            >
+              {title}
+            </a>
+          ) : (
+            <span className="text-surface-800 block truncate text-sm font-medium">{title}</span>
+          )}
+          <div className="text-surface-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+            {source.hostname && <span>{source.hostname}</span>}
+            {source.age && <span>{source.age}</span>}
+          </div>
+          {snippets.length > 0 && (
+            <div className="text-surface-600 mt-1.5 space-y-1 text-xs leading-relaxed">
+              {snippets.map((snippet, index) => (
+                <p key={index} className="line-clamp-2">
+                  {snippet}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </li>
+  )
+}
+
+function WebSearchPanel({ webSearches }: { webSearches: WebSearchActivity[] }) {
+  if (webSearches.length === 0) return null
+
+  const isSearching = webSearches.some((search) => search.status === 'searching')
+  const sourceCount = webSearches.reduce((count, search) => count + search.sources.length, 0)
+  const label = isSearching
+    ? 'Searching the web'
+    : sourceCount === 1
+      ? 'Searched 1 result'
+      : `Searched ${sourceCount} results`
+
+  return (
+    <details
+      className="not-prose border-surface-200 bg-surface-50/80 group mb-3 w-full overflow-hidden rounded-xl border"
+      defaultOpen={isSearching}
+    >
+      <summary className="hover:bg-surface-100 flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm transition-colors [&::-webkit-details-marker]:hidden">
+        <span className="bg-primary-100 text-primary-700 flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
+          <MagnifyingGlassIcon className={cn('h-3.5 w-3.5', isSearching && 'animate-pulse')} />
+        </span>
+        <span className="text-surface-800 min-w-0 flex-1 truncate font-medium">{label}</span>
+        <span className="text-surface-500 hidden truncate text-xs sm:block">
+          {webSearches[0]?.query}
+        </span>
+        <CaretDownIcon className="text-surface-400 h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+      </summary>
+
+      <div className="border-surface-200 space-y-3 border-t px-3 py-3">
+        {webSearches.map((search) => (
+          <div key={search.id}>
+            <div className="mb-2 flex items-start gap-2">
+              <div
+                className={cn(
+                  'mt-0.5 h-2 w-2 shrink-0 rounded-full',
+                  search.status === 'searching'
+                    ? 'bg-primary-500 animate-pulse'
+                    : search.status === 'error'
+                      ? 'bg-amber-500'
+                      : 'bg-emerald-500',
+                )}
+              />
+              <div className="min-w-0">
+                <div className="text-surface-800 text-sm font-medium wrap-break-word">
+                  {search.query}
+                </div>
+                {search.error && (
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-amber-700">
+                    <WarningIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span>{search.error.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {search.sources.length > 0 && (
+              <ul className="space-y-2">
+                {search.sources.map((source) => (
+                  <WebSearchSourceItem key={source.url} source={source} />
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+    </details>
+  )
+}
+
 export function ChatMessage({
   id,
   role,
@@ -204,6 +328,7 @@ export function ChatMessage({
   onEdit,
   onBranch,
   files = [],
+  webSearches = [],
 }: ChatMessageProps) {
   const isUser = role === 'user'
   const isPending = status === 'pending' || status === 'processing'
@@ -324,6 +449,8 @@ export function ChatMessage({
   return (
     <div className="group message-animate flex justify-start px-4 py-3">
       <div className="flex w-full max-w-full min-w-0 flex-col items-start gap-1 md:max-w-[85%]">
+        <WebSearchPanel webSearches={webSearches} />
+
         {isPending && isLatest && !isStreaming ? (
           <div className="flex items-center gap-2 text-stone-600">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-stone-600" />

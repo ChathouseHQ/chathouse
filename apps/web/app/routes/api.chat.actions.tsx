@@ -111,6 +111,25 @@ export async function action({ request }: ActionFunctionArgs) {
             },
           })
 
+          try {
+            const webSearchRows = await tx.$queryRaw<Array<{ webSearches: string | null }>>`
+              SELECT webSearches
+              FROM messages
+              WHERE id = ${msg.id}
+              LIMIT 1
+            `
+            const webSearches = webSearchRows[0]?.webSearches
+            if (webSearches) {
+              await tx.$executeRaw`
+                UPDATE messages
+                SET webSearches = ${webSearches}
+                WHERE id = ${newMessageId}
+              `
+            }
+          } catch {
+            // Branching should still work if web search metadata has not been migrated yet.
+          }
+
           if (msg.files.length > 0) {
             await tx.file.createMany({
               data: msg.files.map(

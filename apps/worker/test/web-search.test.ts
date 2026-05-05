@@ -62,8 +62,8 @@ describe('Brave web search tool', () => {
   })
 
   it('does not expose tools when the API key is missing', () => {
-    assert.equal(buildWebSearchTools(''), undefined)
-    assert.equal(buildWebSearchTools('   '), undefined)
+    assert.equal(buildWebSearchTools({ apiKey: '' }), undefined)
+    assert.equal(buildWebSearchTools({ apiKey: '   ' }), undefined)
   })
 
   it('returns structured errors for Brave HTTP failures', async () => {
@@ -91,9 +91,13 @@ describe('Brave web search tool', () => {
   })
 
   it('enforces a per-response tool call budget', async () => {
+    const events: Array<{ status: string; query: string }> = []
     const searchTool = createWebSearchTool({
       apiKey: 'test-key',
       maxCalls: 1,
+      onEvent: (event) => {
+        events.push({ status: event.status, query: event.query })
+      },
       fetchFn: async () =>
         Response.json({
           grounding: {
@@ -123,5 +127,10 @@ describe('Brave web search tool', () => {
     assert.equal(first.sources.length, 1)
     assert.equal(second.error?.code, 'call_budget_exceeded')
     assert.deepEqual(second.sources, [])
+    assert.deepEqual(events, [
+      { status: 'searching', query: 'first query' },
+      { status: 'complete', query: 'first query' },
+      { status: 'error', query: 'second query' },
+    ])
   })
 })

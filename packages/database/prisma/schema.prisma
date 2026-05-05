@@ -130,6 +130,7 @@ model Message {
   model     String?
   status    String   @default("complete") // 'pending' | 'processing' | 'complete' | 'error'
   error     String?  @db.Text
+  webSearches String? @db.LongText
   createdAt DateTime @default(now())
 
   chat  Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)

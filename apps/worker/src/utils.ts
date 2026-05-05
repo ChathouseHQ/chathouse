@@ -8,7 +8,12 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 
 import { db, redis } from './config.js'
-import { buildWebSearchTools } from './tools/web-search.js'
+import {
+  buildWebSearchTools,
+  type WebSearchError,
+  type WebSearchSource,
+  type WebSearchToolEvent,
+} from './tools/web-search.js'
 
 function resolveUploadDir(): string {
   if (process.env.UPLOAD_DIR) return process.env.UPLOAD_DIR
@@ -132,9 +137,20 @@ function getStreamChannel(messageId: string): string {
 }
 
 interface StreamChunk {
-  type: 'delta' | 'done' | 'error'
+  type: 'delta' | 'done' | 'error' | 'webSearch'
   content?: string
   error?: string
+  webSearch?: WebSearchActivity
+}
+
+export interface WebSearchActivity {
+  id: string
+  query: string
+  status: 'searching' | 'complete' | 'error'
+  sources: WebSearchSource[]
+  error?: WebSearchError
+  startedAt: string
+  completedAt?: string
 }
 
 type StreamTextOptions = Parameters<typeof streamText>[0]
@@ -223,6 +239,42 @@ function usesAnthropicAdaptiveThinking(modelId: string): boolean {
   )
 }
 
+export async function saveMessageWebSearches(
+  messageId: string,
+  webSearches: WebSearchActivity[],
+): Promise<void> {
+  const value = webSearches.length > 0 ? JSON.stringify(webSearches) : null
+  try {
+    await db.$executeRaw`UPDATE messages SET webSearches = ${value} WHERE id = ${messageId}`
+  } catch {
+    // Web search metadata should not block the model response if migrations lag behind the worker.
+  }
+}
+
+function mergeWebSearchEvent(
+  existingSearches: WebSearchActivity[],
+  event: WebSearchToolEvent,
+): WebSearchActivity[] {
+  const now = new Date().toISOString()
+  const index = existingSearches.findIndex((item) => item.id === event.id)
+  const previous = index >= 0 ? existingSearches[index] : undefined
+  const next: WebSearchActivity = {
+    id: event.id,
+    query: event.query,
+    status: event.status,
+    sources: event.sources,
+    ...(event.error ? { error: event.error } : {}),
+    startedAt: previous?.startedAt ?? now,
+    ...(event.status === 'searching' ? {} : { completedAt: now }),
+  }
+
+  if (index === -1) return [...existingSearches, next]
+
+  const merged = [...existingSearches]
+  merged[index] = next
+  return merged
+}
+
 export async function streamAIResponse(
   userId: string,
   modelId: string,
@@ -238,7 +290,25 @@ export async function streamAIResponse(
   const apiKey = await getApiKey(userId, provider)
   if (!apiKey) throw new Error(`No API key configured for ${provider}`)
 
-  const tools = buildWebSearchTools()
+  let webSearches: WebSearchActivity[] = []
+  await saveMessageWebSearches(messageId, webSearches)
+
+  const channel = getStreamChannel(messageId)
+  const publishWebSearch = async (event: WebSearchToolEvent) => {
+    webSearches = mergeWebSearchEvent(webSearches, event)
+    const webSearch = webSearches.find((item) => item.id === event.id)
+    if (!webSearch) return
+
+    try {
+      await saveMessageWebSearches(messageId, webSearches)
+      const streamChunk: StreamChunk = { type: 'webSearch', webSearch }
+      await redis.publish(channel, JSON.stringify(streamChunk))
+    } catch {
+      // Search UI events are best-effort; the answer should keep streaming.
+    }
+  }
+
+  const tools = buildWebSearchTools({ onEvent: publishWebSearch })
   const webSearchPrompt = tools ? WEB_SEARCH_SYSTEM_PROMPT : ''
   const combinedSystemPrompt = userSystemPrompt
     ? `${BASE_SYSTEM_PROMPT}${webSearchPrompt}\n\nAdditional instructions from user:\n${userSystemPrompt}`
@@ -266,7 +336,6 @@ export async function streamAIResponse(
   }
 
   const providerOptions = buildProviderOptions(provider, modelId, reasoningEffort)
-  const channel = getStreamChannel(messageId)
   let fullContent = ''
 
   try {

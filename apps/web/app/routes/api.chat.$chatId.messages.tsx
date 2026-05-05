@@ -2,6 +2,7 @@ import { data, type LoaderFunctionArgs } from 'react-router'
 
 import { db } from '~/lib/db.server'
 import { requireAuth } from '~/lib/session.server'
+import { attachWebSearchesToMessages } from '~/lib/web-searches.server'
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const user = await requireAuth(request)
@@ -28,12 +29,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw data({ error: 'Chat not found' }, { status: 404 })
   }
 
-  const hasPendingMessage = chat.messages.some(
+  const messages = await attachWebSearchesToMessages(chat.messages)
+
+  const hasPendingMessage = messages.some(
     (m: { status: string }) => m.status === 'pending' || m.status === 'processing',
   )
 
   return {
-    messages: chat.messages,
+    messages,
     hasPendingMessage,
   }
 }

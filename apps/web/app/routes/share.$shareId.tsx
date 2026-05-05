@@ -3,6 +3,8 @@ import { Link, useLoaderData, type LoaderFunctionArgs, type MetaFunction } from 
 
 import { ChatMessage } from '~/components/ChatMessage'
 import { db } from '~/lib/db.server'
+import type { WebSearchActivity } from '~/lib/web-searches'
+import { attachWebSearchesToMessages } from '~/lib/web-searches.server'
 
 interface SharedMessage {
   id: string
@@ -10,6 +12,7 @@ interface SharedMessage {
   content: string
   model: string | null
   createdAt: string | Date
+  webSearches?: WebSearchActivity[]
   files: Array<{ id: string; filename: string; mimeType: string; size: number }>
 }
 
@@ -63,7 +66,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
 
   const { chat } = sharedLink
 
-  let messages: SharedMessage[] = chat.messages
+  let messages: SharedMessage[] = await attachWebSearchesToMessages(chat.messages)
   if (sharedLink.frozenAt) {
     messages = messages.filter((m: SharedMessage) => new Date(m.createdAt) <= sharedLink.frozenAt!)
   }
@@ -118,6 +121,7 @@ export default function SharedChatPage() {
               content={message.content}
               model={message.model}
               files={includeAttachments ? message.files : undefined}
+              webSearches={message.webSearches}
             />
           ))}
         </div>
