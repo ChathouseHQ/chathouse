@@ -1,7 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
-import { decrypt, type Provider } from '@chathouse/database'
+import { decrypt, getModelMetadata, type Provider, type ReasoningLevel } from '@chathouse/database'
 import { streamText, type ModelMessage, type UserContent } from 'ai'
 import { existsSync } from 'fs'
 import * as fs from 'fs/promises'
@@ -38,7 +38,22 @@ const BASE_SYSTEM_PROMPT = `You are a helpful AI assistant. When responding:
 
 export function isOpenAIModelId(modelId: string): boolean {
   const id = modelId.toLowerCase()
-  return id.startsWith('gpt-') || /^o\d/.test(id) || id.startsWith('chatgpt')
+  if (!(id.startsWith('gpt-') || /^o\d/.test(id) || id.startsWith('chatgpt'))) {
+    return false
+  }
+
+  return !['audio', 'image', 'realtime', 'transcribe', 'tts', 'whisper'].some((part) =>
+    id.includes(part),
+  )
+}
+
+export function isGoogleChatModelId(modelId: string): boolean {
+  const id = modelId.toLowerCase()
+  if (!id.startsWith('gemini')) return false
+
+  return !['audio', 'embedding', 'image', 'live', 'native-audio', 'robotics', 'tts'].some((part) =>
+    id.includes(part),
+  )
 }
 
 function getProviderForModel(modelId: string): Provider | undefined {
@@ -115,6 +130,92 @@ interface StreamChunk {
   error?: string
 }
 
+type StreamTextOptions = Parameters<typeof streamText>[0]
+
+function buildProviderOptions(
+  provider: Provider,
+  modelId: string,
+  reasoningEffort?: ReasoningLevel,
+): StreamTextOptions['providerOptions'] {
+  if (!reasoningEffort) return undefined
+
+  const meta = getModelMetadata(modelId)
+  if (!meta?.reasoningLevels?.includes(reasoningEffort)) return undefined
+
+  switch (provider) {
+    case 'openai':
+      return { openai: { reasoningEffort } }
+    case 'anthropic': {
+      if (usesAnthropicAdaptiveThinking(modelId)) {
+        const effort =
+          reasoningEffort === 'xhigh'
+            ? 'max'
+            : reasoningEffort === 'minimal'
+              ? 'low'
+              : reasoningEffort
+        return {
+          anthropic: {
+            thinking: { type: 'adaptive' },
+            effort,
+          },
+        }
+      }
+
+      if (reasoningEffort === 'minimal' || reasoningEffort === 'xhigh') return undefined
+
+      const budgetMap: Record<ReasoningLevel, number> = {
+        minimal: 1024,
+        low: 4096,
+        medium: 10_000,
+        high: 32_000,
+        xhigh: 64_000,
+      }
+      return {
+        anthropic: {
+          thinking: { type: 'enabled', budgetTokens: budgetMap[reasoningEffort] },
+        },
+      }
+    }
+    case 'google': {
+      if (reasoningEffort === 'xhigh') return undefined
+
+      if (modelId.toLowerCase().startsWith('gemini-3')) {
+        return {
+          google: {
+            thinkingConfig: {
+              thinkingLevel: reasoningEffort === 'minimal' ? 'minimal' : reasoningEffort,
+            },
+          },
+        }
+      }
+
+      if (reasoningEffort === 'minimal') return undefined
+
+      const budgetMap: Record<ReasoningLevel, number> = {
+        minimal: 1024,
+        low: 2048,
+        medium: 8192,
+        high: 32_768,
+        xhigh: 65_536,
+      }
+      return {
+        google: {
+          thinkingConfig: { thinkingBudget: budgetMap[reasoningEffort] },
+        },
+      }
+    }
+  }
+}
+
+function usesAnthropicAdaptiveThinking(modelId: string): boolean {
+  const id = modelId.toLowerCase()
+  return (
+    id.startsWith('claude-opus-4-7') ||
+    id.startsWith('claude-opus-4-6') ||
+    id.startsWith('claude-sonnet-4-6')
+  )
+}
+
 export async function streamAIResponse(
   userId: string,
   modelId: string,
@@ -122,6 +223,7 @@ export async function streamAIResponse(
   messages: ModelMessage[],
   userSystemPrompt?: string,
   onChunk?: (fullContent: string) => Promise<void>,
+  reasoningEffort?: ReasoningLevel,
 ): Promise<string> {
   const provider = getProviderForModel(modelId)
   if (!provider) throw new Error(`Unknown model: ${modelId}`)
@@ -154,11 +256,12 @@ export async function streamAIResponse(
     }
   }
 
+  const providerOptions = buildProviderOptions(provider, modelId, reasoningEffort)
   const channel = getStreamChannel(messageId)
   let fullContent = ''
 
   try {
-    const result = streamText({ model, messages: allMessages })
+    const result = streamText({ model, messages: allMessages, providerOptions })
 
     for await (const chunk of result.textStream) {
       fullContent += chunk

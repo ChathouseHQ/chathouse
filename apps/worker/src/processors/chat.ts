@@ -19,7 +19,8 @@ import {
 const logger = createLogger('worker:chat')
 
 export async function processChatJob(job: Job<ChatJobData>) {
-  const { messageId, chatId, userId, content, model, systemPrompt, fileIds } = job.data
+  const { messageId, chatId, userId, content, model, systemPrompt, fileIds, reasoningEffort } =
+    job.data
 
   try {
     await db.message.update({
@@ -102,6 +103,7 @@ export async function processChatJob(job: Job<ChatJobData>) {
           })
         }
       },
+      reasoningEffort,
     )
 
     await db.message.update({
@@ -127,9 +129,9 @@ export async function processChatJob(job: Job<ChatJobData>) {
 }
 
 const TITLE_MODELS: Array<{ modelId: string; provider: 'openai' | 'anthropic' | 'google' }> = [
-  { modelId: 'gemini-3.1-flash-lite', provider: 'google' },
-  { modelId: 'gpt-5-nano', provider: 'openai' },
-  { modelId: 'claude-3-5-haiku-latest', provider: 'anthropic' },
+  { modelId: 'gemini-3.1-flash-lite-preview', provider: 'google' },
+  { modelId: 'gpt-5.4-nano', provider: 'openai' },
+  { modelId: 'claude-haiku-4-5', provider: 'anthropic' },
 ]
 
 export async function processTitleJob(job: Job<TitleJobData>) {

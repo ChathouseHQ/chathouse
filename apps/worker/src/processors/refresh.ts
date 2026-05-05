@@ -3,7 +3,7 @@ import { createLogger } from '@chathouse/logger'
 import { Job } from 'bullmq'
 
 import { db } from '../config.js'
-import { formatModelName, isOpenAIModelId } from '../utils.js'
+import { formatModelName, isGoogleChatModelId, isOpenAIModelId } from '../utils.js'
 
 const logger = createLogger('worker:refresh')
 
@@ -45,11 +45,7 @@ async function fetchGoogleModels(apiKey: string): Promise<string[]> {
     const data = (await response.json()) as {
       models?: Array<{ name: string }>
     }
-    return (
-      data.models
-        ?.filter((m) => m.name.includes('gemini'))
-        .map((m) => m.name.replace('models/', '')) || []
-    )
+    return data.models?.map((m) => m.name.replace('models/', '')).filter(isGoogleChatModelId) || []
   } catch {
     return []
   }

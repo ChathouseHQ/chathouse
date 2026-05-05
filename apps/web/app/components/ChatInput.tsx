@@ -10,11 +10,13 @@ import {
   XIcon,
   FileTextIcon,
   UploadSimpleIcon,
+  EyeIcon,
+  BrainIcon,
 } from '@phosphor-icons/react'
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { Form, Link, useFetcher, useNavigation } from 'react-router'
 
-import type { Provider } from '~/lib/models'
+import type { Provider, ModelFeature, ReasoningLevel } from '~/lib/models'
 import type { EnrichedModel } from '~/lib/models.server'
 
 import { cn, formatFileSize } from '~/lib/utils'
@@ -40,6 +42,8 @@ interface ChatInputProps {
   connectedProviders?: Provider[]
   isTemporary?: boolean
   onTemporaryToggle?: () => void
+  reasoningEffort?: ReasoningLevel
+  onReasoningEffortChange?: (level: ReasoningLevel | undefined) => void
 }
 
 interface FavoriteActionData {
@@ -64,6 +68,8 @@ export function ChatInput({
   connectedProviders = [],
   isTemporary = false,
   onTemporaryToggle,
+  reasoningEffort,
+  onReasoningEffortChange,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
@@ -121,6 +127,14 @@ export function ChatInput({
   )
 
   const currentModel = displayModels.find((m) => m.id === selectedModel)
+  const supportsReasoning = currentModel?.reasoningLevels && currentModel.reasoningLevels.length > 0
+
+  useEffect(() => {
+    if (!reasoningEffort || !onReasoningEffortChange) return
+    if (currentModel?.reasoningLevels?.includes(reasoningEffort)) return
+
+    onReasoningEffortChange(undefined)
+  }, [currentModel?.reasoningLevels, onReasoningEffortChange, reasoningEffort])
 
   const filteredModels = useMemo(() => {
     if (!searchQuery.trim()) return displayModels
@@ -296,6 +310,7 @@ export function ChatInput({
       }}
     >
       <input type="hidden" name="model" value={selectedModel} />
+      {reasoningEffort && <input type="hidden" name="reasoningEffort" value={reasoningEffort} />}
       {isTemporary && <input type="hidden" name="isTemporary" value="1" />}
       {isEditing && <input type="hidden" name="action" value="edit" />}
       {attachedFiles.length > 0 && (
@@ -319,10 +334,12 @@ export function ChatInput({
           className={cn(
             'relative rounded-xl border transition-all duration-300',
             isTemporary
-              ? 'border-slate-600 bg-slate-800 focus-within:border-slate-500'
+              ? 'border-primary-600 bg-primary-800 focus-within:border-primary-500'
               : 'border-surface-200 focus-within:border-surface-400 bg-white',
             isDragging &&
-              (isTemporary ? 'border-slate-400 bg-slate-700' : 'border-primary-400 bg-primary-50'),
+              (isTemporary
+                ? 'border-primary-400 bg-primary-700/80'
+                : 'border-primary-400 bg-primary-50/50'),
           )}
         >
           {isDragging && (
@@ -347,8 +364,8 @@ export function ChatInput({
               className={cn(
                 'w-full resize-none bg-transparent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
                 isTemporary
-                  ? 'text-slate-100 placeholder:text-slate-400'
-                  : 'text-stone-800 placeholder:text-stone-400',
+                  ? 'text-primary-100 placeholder:text-primary-400'
+                  : 'text-surface-800 placeholder:text-surface-400',
               )}
               style={{ maxHeight: 200 }}
             />
@@ -361,7 +378,9 @@ export function ChatInput({
                   key={file.id}
                   className={cn(
                     'group relative flex items-center gap-2.5 rounded-lg border py-2 pr-7 pl-2.5',
-                    isTemporary ? 'border-slate-600 bg-slate-700' : 'border-stone-200 bg-stone-50',
+                    isTemporary
+                      ? 'border-primary-600 bg-primary-700'
+                      : 'border-surface-200 bg-surface-50',
                   )}
                 >
                   <button
@@ -379,13 +398,13 @@ export function ChatInput({
                       <div
                         className={cn(
                           'flex h-9 w-9 items-center justify-center rounded',
-                          isTemporary ? 'bg-slate-600' : 'bg-stone-200/60',
+                          isTemporary ? 'bg-primary-600' : 'bg-surface-200/60',
                         )}
                       >
                         <FileTextIcon
                           className={cn(
                             'h-4 w-4',
-                            isTemporary ? 'text-slate-300' : 'text-stone-500',
+                            isTemporary ? 'text-primary-300' : 'text-surface-500',
                           )}
                         />
                       </div>
@@ -395,14 +414,14 @@ export function ChatInput({
                         size="xs"
                         weight="medium"
                         truncate
-                        className={cn('block max-w-[140px]', isTemporary && 'text-slate-100')}
+                        className={cn('block max-w-[140px]', isTemporary && 'text-primary-100')}
                       >
                         {file.filename}
                       </Text>
                       <Text
                         size="xs"
                         colour="muted"
-                        className={cn('block', isTemporary && 'text-slate-400')}
+                        className={cn('block', isTemporary && 'text-primary-400')}
                       >
                         {formatFileSize(file.size)}
                       </Text>
@@ -414,8 +433,8 @@ export function ChatInput({
                     className={cn(
                       'absolute top-1 right-1 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100',
                       isTemporary
-                        ? 'text-slate-400 hover:bg-slate-600 hover:text-slate-200'
-                        : 'text-stone-400 hover:bg-stone-200 hover:text-stone-600',
+                        ? 'text-primary-400 hover:bg-primary-600 hover:text-primary-200'
+                        : 'text-surface-400 hover:bg-surface-200 hover:text-surface-600',
                     )}
                   >
                     <XIcon className="h-3.5 w-3.5" />
@@ -426,10 +445,12 @@ export function ChatInput({
                 <div
                   className={cn(
                     'flex items-center gap-2 rounded-lg border px-2.5 py-2',
-                    isTemporary ? 'border-slate-600 bg-slate-700' : 'border-stone-200 bg-stone-50',
+                    isTemporary
+                      ? 'border-primary-600 bg-primary-700'
+                      : 'border-surface-200 bg-surface-50',
                   )}
                 >
-                  <SpinnerGapIcon className="h-4 w-4 animate-spin text-stone-400" />
+                  <SpinnerGapIcon className="text-surface-400 h-4 w-4 animate-spin" />
                   <Text size="xs" colour="muted">
                     Uploading...
                   </Text>
@@ -449,7 +470,7 @@ export function ChatInput({
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-3 rounded-xl bg-white px-10 py-8">
-                    <FileTextIcon className="h-12 w-12 text-stone-400" />
+                    <FileTextIcon className="text-surface-400 h-12 w-12" />
                     <Text weight="medium">{previewFile.filename}</Text>
                     <Text size="sm" colour="muted">
                       {formatFileSize(previewFile.size)}
@@ -482,8 +503,8 @@ export function ChatInput({
                   className={cn(
                     'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
                     isTemporary
-                      ? 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                      : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600',
+                      ? 'text-primary-400 hover:bg-primary-700 hover:text-primary-200'
+                      : 'text-surface-400 hover:bg-surface-100 hover:text-surface-600',
                   )}
                 >
                   <PlusIcon className="h-5 w-5" />
@@ -516,8 +537,8 @@ export function ChatInput({
                   className={cn(
                     'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
                     isTemporary
-                      ? 'bg-slate-600 text-slate-200 hover:bg-slate-500'
-                      : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600',
+                      ? 'bg-primary-600 text-primary-200 hover:bg-primary-500'
+                      : 'text-surface-400 hover:bg-surface-100 hover:text-surface-600',
                   )}
                 >
                   <ClockIcon className="h-5 w-5" weight={isTemporary ? 'fill' : 'regular'} />
@@ -530,10 +551,19 @@ export function ChatInput({
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="rounded-lg px-3 py-1.5 text-sm text-stone-500 transition-colors hover:bg-stone-100"
+                  className="text-surface-500 hover:bg-surface-100 rounded-lg px-3 py-1.5 text-sm transition-colors"
                 >
                   Cancel
                 </button>
+              )}
+
+              {supportsReasoning && onReasoningEffortChange && (
+                <ReasoningSelector
+                  levels={currentModel!.reasoningLevels!}
+                  value={reasoningEffort}
+                  onChange={onReasoningEffortChange}
+                  isTemporary={isTemporary}
+                />
               )}
 
               <div ref={modelSelectorRef} className="relative">
@@ -556,16 +586,26 @@ export function ChatInput({
                   className={cn(
                     'flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors',
                     isTemporary
-                      ? 'text-slate-300 hover:bg-slate-700'
-                      : 'text-stone-600 hover:bg-stone-100',
+                      ? 'text-primary-300 hover:bg-primary-700'
+                      : 'text-surface-600 hover:bg-surface-100',
                   )}
                 >
                   {currentModel && <ProviderLogo provider={currentModel.provider} size="sm" />}
-                  <span>{currentModel?.customName || currentModel?.name || 'Select model'}</span>
+                  <span className="flex min-w-0 items-baseline gap-1.5">
+                    <span className="truncate">
+                      {currentModel?.customName || currentModel?.name || 'Select model'}
+                    </span>
+                    {currentModel?.versionLabel && (
+                      <span className="text-surface-400 shrink-0 text-xs">
+                        ({currentModel.versionLabel})
+                      </span>
+                    )}
+                  </span>
+                  {currentModel?.priceTier && <PriceTierBadge tier={currentModel.priceTier} />}
                   <CaretUpIcon
                     className={cn(
                       'h-4 w-4 transition-transform',
-                      isTemporary ? 'text-slate-500' : 'text-stone-400',
+                      isTemporary ? 'text-primary-500' : 'text-surface-400',
                       !isModelSelectorOpen && 'rotate-180',
                     )}
                   />
@@ -573,8 +613,8 @@ export function ChatInput({
 
                 {isModelSelectorOpen && (
                   <div className="absolute right-0 bottom-full z-50 mb-2">
-                    <div className="flex overflow-hidden rounded-xl border border-stone-200 shadow-lg">
-                      <div className="flex flex-col items-center gap-1 border-r border-stone-100 bg-stone-50 p-1.5">
+                    <div className="border-surface-200 flex overflow-hidden rounded-xl border shadow-lg">
+                      <div className="border-surface-100 bg-surface-50 flex flex-col items-center gap-1 border-r p-1.5">
                         <button
                           type="button"
                           onClick={() => {
@@ -585,7 +625,7 @@ export function ChatInput({
                             'flex h-10 w-10 items-center justify-center rounded-lg border border-transparent transition-colors',
                             activeTab === 'favorites'
                               ? 'border-surface-300 bg-white text-amber-500'
-                              : 'text-surface-300 hover:text-surface-400 hover:bg-stone-200/50',
+                              : 'text-surface-300 hover:text-surface-400 hover:bg-surface-200/50',
                           )}
                           title="Favorites"
                         >
@@ -594,7 +634,7 @@ export function ChatInput({
                             weight={hasFavorites ? 'fill' : 'regular'}
                           />
                         </button>
-                        <div className="mx-auto h-px w-6 bg-stone-200" />
+                        <div className="bg-surface-200 mx-auto h-px w-6" />
                         {ALL_PROVIDERS.map((provider) => (
                           <button
                             key={provider}
@@ -607,7 +647,7 @@ export function ChatInput({
                               'flex h-10 w-10 items-center justify-center rounded-lg border border-transparent transition-colors',
                               activeTab === provider
                                 ? 'border-surface-300 bg-white'
-                                : 'text-stone-400 hover:bg-stone-200/50 hover:text-stone-600',
+                                : 'text-surface-400 hover:bg-surface-200/50 hover:text-surface-600',
                             )}
                             title={PROVIDER_NAMES[provider]}
                           >
@@ -616,19 +656,19 @@ export function ChatInput({
                         ))}
                       </div>
 
-                      <div className="flex min-h-[341px] w-72 flex-col bg-white">
-                        <div className="border-b border-stone-100 p-2">
+                      <div className="flex min-h-[341px] w-80 flex-col bg-white sm:w-96">
+                        <div className="border-surface-100 border-b p-2">
                           <Input
                             ref={searchInputRef}
                             icon={<MagnifyingGlassIcon className="h-4 w-4" />}
                             placeholder="Search models..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="border-0 bg-stone-50 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:ring-0"
+                            className="bg-surface-50 text-surface-800 placeholder:text-surface-400 border-0 py-2 text-sm focus:ring-0"
                           />
                         </div>
 
-                        <div className="max-h-72 overflow-y-auto p-2">
+                        <div className="max-h-80 overflow-y-auto p-1.5">
                           {activeTab !== 'favorites' && !connectedProviders.includes(activeTab) ? (
                             <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
                               <ProviderLogo provider={activeTab} size="xl" showBackground />
@@ -655,7 +695,7 @@ export function ChatInput({
                                 </Text>
                               ) : activeTab === 'favorites' ? (
                                 <div className="flex flex-col items-center gap-2 py-4">
-                                  <StarIcon className="h-6 w-6 text-stone-300" />
+                                  <StarIcon className="text-surface-300 h-6 w-6" />
                                   <Text size="sm" colour="muted">
                                     No favorites yet
                                   </Text>
@@ -665,7 +705,7 @@ export function ChatInput({
                                 </div>
                               ) : (
                                 <>
-                                  <LightningIcon className="mx-auto mb-2 h-5 w-5 text-stone-400" />
+                                  <LightningIcon className="text-surface-400 mx-auto mb-2 h-5 w-5" />
                                   <Text as="p" size="sm" colour="muted">
                                     All models disabled
                                   </Text>
@@ -705,10 +745,10 @@ export function ChatInput({
                   'flex h-9 w-9 items-center justify-center rounded-xl transition-colors',
                   cannotSubmit
                     ? isTemporary
-                      ? 'cursor-not-allowed bg-slate-700 text-slate-500'
-                      : 'cursor-not-allowed bg-stone-100 text-stone-400'
+                      ? 'bg-primary-700 text-primary-500 cursor-not-allowed'
+                      : 'bg-surface-100 text-surface-400 cursor-not-allowed'
                     : isTemporary
-                      ? 'bg-slate-200 text-slate-800 hover:bg-white'
+                      ? 'bg-primary-200 text-primary-800 hover:bg-white'
                       : 'bg-primary-600 hover:bg-primary-700 text-white',
                 )}
               >
@@ -738,6 +778,123 @@ export function ChatInput({
   )
 }
 
+const REASONING_LABELS: Record<
+  ReasoningLevel,
+  { label: string; shortLabel: string; icon: typeof BrainIcon }
+> = {
+  minimal: { label: 'Minimal', shortLabel: 'Min', icon: BrainIcon },
+  low: { label: 'Low', shortLabel: 'Low', icon: BrainIcon },
+  medium: { label: 'Medium', shortLabel: 'Med', icon: BrainIcon },
+  high: { label: 'High', shortLabel: 'High', icon: BrainIcon },
+  xhigh: { label: 'Extra high', shortLabel: 'XHigh', icon: BrainIcon },
+}
+
+function ReasoningSelector({
+  levels,
+  value,
+  onChange,
+  isTemporary = false,
+}: {
+  levels: ReasoningLevel[]
+  value?: ReasoningLevel
+  onChange: (level: ReasoningLevel | undefined) => void
+  isTemporary?: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSelect = (level: ReasoningLevel) => {
+    onChange(value === level ? undefined : level)
+    setIsOpen(false)
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors',
+          value
+            ? isTemporary
+              ? 'bg-primary-600 text-primary-200'
+              : 'bg-violet-50 text-violet-700'
+            : isTemporary
+              ? 'text-primary-400 hover:bg-primary-700 hover:text-primary-200'
+              : 'text-surface-400 hover:bg-surface-100 hover:text-surface-600',
+        )}
+        title="Reasoning effort"
+      >
+        <BrainIcon className="h-4 w-4" weight={value ? 'fill' : 'regular'} />
+        {value && <span className="text-xs font-medium">{REASONING_LABELS[value].shortLabel}</span>}
+      </button>
+
+      {isOpen && (
+        <div className="border-surface-200 absolute right-0 bottom-full z-50 mb-2 w-36 overflow-hidden rounded-lg border bg-white shadow-lg">
+          {levels.map((level) => (
+            <button
+              key={level}
+              type="button"
+              onClick={() => handleSelect(level)}
+              className={cn(
+                'hover:bg-surface-50 flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors',
+                value === level && 'bg-violet-50 text-violet-700',
+              )}
+            >
+              <BrainIcon className="h-4 w-4" weight={value === level ? 'fill' : 'regular'} />
+              {REASONING_LABELS[level].label}
+            </button>
+          ))}
+          {value && (
+            <>
+              <div className="bg-surface-100 mx-2 h-px" />
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(undefined)
+                  setIsOpen(false)
+                }}
+                className="text-surface-400 hover:bg-surface-50 hover:text-surface-600 flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
+              >
+                <XIcon className="h-4 w-4" />
+                Off
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const FEATURE_ICONS: Record<ModelFeature, { icon: typeof EyeIcon; label: string }> = {
+  vision: { icon: EyeIcon, label: 'Vision' },
+  reasoning: { icon: BrainIcon, label: 'Reasoning' },
+}
+
+function PriceTierBadge({ tier }: { tier: string }) {
+  const colorClass =
+    tier === '$$$$'
+      ? 'text-red-500'
+      : tier === '$$$'
+        ? 'text-amber-500'
+        : tier === '$$'
+          ? 'text-emerald-500'
+          : 'text-surface-400'
+
+  return <span className={cn('text-[10px] leading-none font-semibold', colorClass)}>{tier}</span>
+}
+
 function ModelOption({
   model,
   isSelected,
@@ -753,37 +910,59 @@ function ModelOption({
   isFavoriteActionPending: boolean
   showProviderLogo?: boolean
 }) {
+  const hasFeatures = model.features && model.features.length > 0
+
   return (
     <div
       className={cn(
-        'flex items-center gap-2 rounded-md px-3 py-1.5 transition-colors hover:bg-stone-50',
+        'group hover:bg-surface-50 flex gap-2.5 rounded-lg px-2.5 py-2 transition-colors',
         isSelected && 'bg-primary-50',
       )}
     >
-      <button
-        type="button"
-        onClick={onSelect}
-        className="flex min-w-0 flex-1 items-center gap-3 text-left"
-      >
-        {showProviderLogo && <ProviderLogo provider={model.provider} size="sm" />}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <Text
-              size="sm"
-              weight="medium"
-              className={isSelected ? 'text-primary-700' : undefined}
-              truncate
-            >
-              {model.customName || model.name}
-            </Text>
-          </div>
-          {model.description && (
-            <Text size="xs" colour="muted" truncate>
-              {model.description}
-            </Text>
-          )}
+      {showProviderLogo && (
+        <div className="mt-0.5 shrink-0">
+          <ProviderLogo provider={model.provider} size="sm" />
         </div>
+      )}
+
+      <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-left">
+        <div className="flex min-w-0 items-baseline gap-1.5">
+          <Text
+            size="sm"
+            weight="medium"
+            className={cn('truncate', isSelected && 'text-primary-700')}
+          >
+            {model.customName || model.name}
+          </Text>
+          {model.versionLabel && (
+            <span className="text-surface-400 shrink-0 text-xs">({model.versionLabel})</span>
+          )}
+          {model.priceTier && <PriceTierBadge tier={model.priceTier} />}
+        </div>
+
+        {(model.description || hasFeatures) && (
+          <div className="mt-0.5 flex items-center gap-2">
+            {model.description && (
+              <span className="text-surface-400 min-w-0 truncate text-xs">{model.description}</span>
+            )}
+            {hasFeatures && (
+              <span className="flex shrink-0 items-center gap-0.5">
+                {model.features!.map((feature) => {
+                  const info = FEATURE_ICONS[feature]
+                  if (!info) return null
+                  const Icon = info.icon
+                  return (
+                    <span key={feature} title={info.label} className="text-surface-300">
+                      <Icon className="h-3 w-3" />
+                    </span>
+                  )
+                })}
+              </span>
+            )}
+          </div>
+        )}
       </button>
+
       <button
         type="button"
         onClick={(e) => {
@@ -792,10 +971,10 @@ function ModelOption({
         }}
         disabled={isFavoriteActionPending}
         className={cn(
-          'rounded-lg p-1 transition-colors',
+          'mt-0.5 shrink-0 rounded-lg p-1 transition-colors',
           model.favorite
             ? 'text-amber-500 hover:bg-amber-50'
-            : 'text-surface-300 hover:bg-surface-100 hover:text-surface-500',
+            : 'text-surface-300 hover:bg-surface-100 hover:text-surface-500 opacity-0 group-hover:opacity-100',
           isFavoriteActionPending && 'cursor-not-allowed opacity-50',
         )}
         title={model.favorite ? 'Remove from favorites' : 'Add to favorites'}

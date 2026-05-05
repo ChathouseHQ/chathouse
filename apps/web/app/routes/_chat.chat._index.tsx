@@ -1,3 +1,4 @@
+import { isReasoningLevel } from '@chathouse/database'
 import { useState } from 'react'
 import {
   redirect,
@@ -6,6 +7,8 @@ import {
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from 'react-router'
+
+import type { ReasoningLevel } from '~/lib/models'
 
 import { ChatInput } from '~/components/ChatInput'
 import { db } from '~/lib/db.server'
@@ -43,6 +46,8 @@ export async function action({ request }: ActionFunctionArgs) {
   const model = formData.get('model') as string
   const fileIdsRaw = formData.get('fileIds') as string
   const isTemporary = formData.get('isTemporary') === '1'
+  const reasoningEffortRaw = formData.get('reasoningEffort')
+  const reasoningEffort = isReasoningLevel(reasoningEffortRaw) ? reasoningEffortRaw : undefined
 
   if (!content?.trim()) {
     return { error: 'Message cannot be empty' }
@@ -113,6 +118,7 @@ export async function action({ request }: ActionFunctionArgs) {
     model,
     systemPrompt: settings?.systemPrompt || undefined,
     fileIds: verifiedFileIds,
+    reasoningEffort,
   })
 
   if (!isTemporary) {
@@ -145,6 +151,7 @@ export default function NewChatPage() {
   const isSubmitting = navigation.state === 'submitting'
   const [selectedModel, setSelectedModel] = useState(models[0]?.id || '')
   const [isTemporary, setIsTemporary] = useState(false)
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningLevel | undefined>()
 
   const greeting = getGreeting(user.name)
 
@@ -165,6 +172,8 @@ export default function NewChatPage() {
             connectedProviders={connectedProviders}
             isTemporary={isTemporary}
             onTemporaryToggle={() => setIsTemporary((v) => !v)}
+            reasoningEffort={reasoningEffort}
+            onReasoningEffortChange={setReasoningEffort}
           />
         </div>
       </div>

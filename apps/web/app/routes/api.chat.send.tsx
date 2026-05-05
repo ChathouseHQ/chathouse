@@ -1,3 +1,4 @@
+import { isReasoningLevel } from '@chathouse/database'
 import { data, type ActionFunctionArgs } from 'react-router'
 
 import { db } from '~/lib/db.server'
@@ -9,6 +10,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const body = await request.json()
 
   const { content, model, chatId } = body
+  const reasoningEffort = isReasoningLevel(body.reasoningEffort) ? body.reasoningEffort : undefined
 
   if (!content?.trim()) {
     throw data({ error: 'Message cannot be empty' }, { status: 400 })
@@ -78,6 +80,7 @@ export async function action({ request }: ActionFunctionArgs) {
     content: content.trim(),
     model,
     systemPrompt: settings?.systemPrompt || undefined,
+    reasoningEffort,
   })
 
   if (isNewChat) {

@@ -1,3 +1,4 @@
+import { isReasoningLevel } from '@chathouse/database'
 import { GitBranchIcon, ShareNetworkIcon } from '@phosphor-icons/react'
 import { useState, useEffect, useRef } from 'react'
 import {
@@ -12,6 +13,8 @@ import {
   type ActionFunctionArgs,
   type MetaFunction,
 } from 'react-router'
+
+import type { ReasoningLevel } from '~/lib/models'
 
 import { ChatInput } from '~/components/ChatInput'
 import { ChatMessage } from '~/components/ChatMessage'
@@ -113,6 +116,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const messageId = formData.get('messageId') as string
   const fileIdsRaw = formData.get('fileIds') as string
   const fileIds = fileIdsRaw ? fileIdsRaw.split(',').filter(Boolean) : []
+  const reasoningEffortRaw = formData.get('reasoningEffort')
+  const reasoningEffort = isReasoningLevel(reasoningEffortRaw) ? reasoningEffortRaw : undefined
 
   const chat = await db.chat.findUnique({
     where: { id: params.chatId, userId: user.id },
@@ -176,6 +181,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       model: model || messageToRetry.model || 'gpt-4o-mini',
       systemPrompt: settings?.systemPrompt || undefined,
       fileIds: userFiles.length > 0 ? userFiles.map((f: { id: string }) => f.id) : undefined,
+      reasoningEffort,
     })
 
     return { success: true }
@@ -245,6 +251,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       model,
       systemPrompt: settings?.systemPrompt || undefined,
       fileIds: editFiles.length > 0 ? editFiles.map((f: { id: string }) => f.id) : undefined,
+      reasoningEffort,
     })
 
     return { success: true }
@@ -306,6 +313,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     model,
     systemPrompt: settings?.systemPrompt || undefined,
     fileIds: verifiedFileIds,
+    reasoningEffort,
   })
 
   return { success: true }
@@ -363,6 +371,7 @@ export default function ChatPage() {
   const [selectedModel, setSelectedModel] = useState(
     lastAssistantMessage?.model || models[0]?.id || '',
   )
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningLevel | undefined>()
 
   const pendingMessage = chat.messages.find(
     (m: MessageRow) => m.status === 'pending' || m.status === 'processing',
@@ -497,6 +506,7 @@ export default function ChatPage() {
     formData.append('action', 'retry')
     formData.append('messageId', messageId)
     formData.append('model', selectedModel)
+    if (reasoningEffort) formData.append('reasoningEffort', reasoningEffort)
     fetcher.submit(formData, { method: 'post' })
   }
 
@@ -583,6 +593,9 @@ export default function ChatPage() {
                         <input type="hidden" name="action" value="edit" />
                         <input type="hidden" name="messageId" value={message.id} />
                         <input type="hidden" name="model" value={selectedModel} />
+                        {reasoningEffort && (
+                          <input type="hidden" name="reasoningEffort" value={reasoningEffort} />
+                        )}
                         <div className="rounded-2xl border border-stone-300 bg-white p-3 shadow-sm">
                           <textarea
                             name="content"
@@ -602,7 +615,7 @@ export default function ChatPage() {
                             >
                               {models.map((m) => (
                                 <option key={m.id} value={m.id}>
-                                  {m.name}
+                                  {m.versionLabel ? `${m.name} (${m.versionLabel})` : m.name}
                                 </option>
                               ))}
                             </select>
@@ -689,6 +702,8 @@ export default function ChatPage() {
           placeholder={hasPendingMessage ? 'Waiting for response...' : 'Reply...'}
           connectedProviders={connectedProviders}
           isTemporary={chat.isTemporary}
+          reasoningEffort={reasoningEffort}
+          onReasoningEffortChange={setReasoningEffort}
         />
       </div>
 
