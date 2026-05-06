@@ -28,10 +28,10 @@ export async function attachWebSearchesToMessages<T extends { id: string }>(
 
   const placeholders = messages.map(() => '?').join(', ')
   try {
-    const rows = await db.$queryRawUnsafe<WebSearchRow[]>(
+    const rows = (await db.$queryRawUnsafe(
       `SELECT id, webSearches FROM messages WHERE id IN (${placeholders})`,
       ...messages.map((message) => message.id),
-    )
+    )) as WebSearchRow[]
     const byMessageId = new Map(rows.map((row) => [row.id, parseWebSearches(row.webSearches)]))
 
     return messages.map((message) => ({

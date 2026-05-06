@@ -1,5 +1,7 @@
 import { jsonSchema, tool } from 'ai'
 import { lookup } from 'node:dns/promises'
+import http from 'node:http'
+import https from 'node:https'
 import { isIP } from 'node:net'
 
 interface OpenUrlInput {
@@ -207,20 +209,18 @@ async function fetchReadablePage(
     }
   }
 
-  const fetchFn = options.fetchFn ?? fetch
+  const fetchFn = options.fetchFn
+  const signal = createAbortSignal(options.abortSignal)
 
   try {
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-      await assertPublicHostname(currentUrl.hostname, options.resolveHostname)
+      const addresses = await assertPublicHostname(currentUrl.hostname, options.resolveHostname)
+      const resolvedUrl = createResolvedUrl(currentUrl, addresses[0])
+      const headers = createRequestHeaders(currentUrl)
 
-      const response = await fetchFn(currentUrl, {
-        redirect: 'manual',
-        headers: {
-          Accept: 'text/html, text/plain, application/xhtml+xml;q=0.9, */*;q=0.1',
-          'User-Agent': 'ChathouseBot/1.0 (+https://github.com/chathouse)',
-        },
-        signal: createAbortSignal(options.abortSignal),
-      })
+      const response = fetchFn
+        ? await fetchFn(resolvedUrl, { redirect: 'manual', headers, signal })
+        : await fetchResolvedUrl(currentUrl, addresses[0], headers, signal)
 
       if (isRedirect(response.status)) {
         const location = response.headers.get('location')
@@ -297,7 +297,7 @@ function normalizePublicUrl(rawUrl: string): URL {
 async function assertPublicHostname(
   hostname: string,
   resolveHostname?: (hostname: string) => Promise<string[]>,
-): Promise<void> {
+): Promise<string[]> {
   const normalized = stripIpv6Brackets(hostname.toLowerCase())
   if (
     normalized === 'localhost' ||
@@ -308,6 +308,7 @@ async function assertPublicHostname(
   }
 
   if (isBlockedIp(normalized)) throw new Error('Private or local IP addresses are blocked.')
+  if (isIP(normalized)) return [normalized]
 
   const addresses =
     resolveHostname ??
@@ -316,7 +317,7 @@ async function assertPublicHostname(
       return records.map((record) => record.address)
     })
 
-  const resolvedAddresses = await addresses(normalized)
+  const resolvedAddresses = (await addresses(normalized)).map(stripIpv6Brackets)
   if (resolvedAddresses.length === 0) throw new Error('Hostname did not resolve.')
 
   for (const address of resolvedAddresses) {
@@ -324,6 +325,74 @@ async function assertPublicHostname(
       throw new Error('Hostname resolves to a private or local IP address.')
     }
   }
+
+  return resolvedAddresses
+}
+
+function createRequestHeaders(url: URL): Record<string, string> {
+  return {
+    Accept: 'text/html, text/plain, application/xhtml+xml;q=0.9, */*;q=0.1',
+    Host: url.host,
+    'User-Agent': 'ChathouseBot/1.0 (+https://github.com/chathouse)',
+  }
+}
+
+function createResolvedUrl(url: URL, address: string): URL {
+  const resolvedUrl = new URL(url)
+  resolvedUrl.hostname = isIP(address) === 6 ? `[${address}]` : address
+  return resolvedUrl
+}
+
+function fetchResolvedUrl(
+  url: URL,
+  address: string,
+  headers: Record<string, string>,
+  signal: AbortSignal,
+): Promise<Response> {
+  const isHttps = url.protocol === 'https:'
+  const request = isHttps ? https.request : http.request
+  const port = url.port ? Number(url.port) : isHttps ? 443 : 80
+
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        hostname: address,
+        port,
+        path: `${url.pathname}${url.search}`,
+        method: 'GET',
+        headers,
+        servername: url.hostname,
+        signal,
+      },
+      (res) => {
+        const responseHeaders = new Headers()
+        for (const [name, value] of Object.entries(res.headers)) {
+          if (Array.isArray(value)) {
+            for (const item of value) responseHeaders.append(name, item)
+          } else if (value !== undefined) {
+            responseHeaders.set(name, String(value))
+          }
+        }
+
+        const status = res.statusCode ?? 500
+        const body =
+          status === 204 || status === 205 || status === 304
+            ? null
+            : (res as ConstructorParameters<typeof Response>[0])
+
+        resolve(
+          new Response(body, {
+            status,
+            statusText: res.statusMessage,
+            headers: responseHeaders,
+          }),
+        )
+      },
+    )
+
+    req.on('error', reject)
+    req.end()
+  })
 }
 
 function isBlockedIp(address: string): boolean {

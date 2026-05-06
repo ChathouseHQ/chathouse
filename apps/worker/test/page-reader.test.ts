@@ -26,6 +26,7 @@ describe('page reader tools', () => {
   })
 
   it('finds literal text in fetched page content', async () => {
+    const signals = new Set<AbortSignal>()
     const result = await findInPage(
       {
         url: 'https://example.com/page',
@@ -33,18 +34,55 @@ describe('page reader tools', () => {
       },
       {
         resolveHostname: async () => ['93.184.216.34'],
-        fetchFn: async () =>
-          new Response(
+        fetchFn: async (url, init) => {
+          assert.equal(url.toString(), 'https://93.184.216.34/page')
+          assert.ok(init)
+          assert.equal((init.headers as Record<string, string>).Host, 'example.com')
+          if (init.signal) signals.add(init.signal)
+          return new Response(
             '<html><body>First paragraph. The needle is here. Tail text.</body></html>',
             {
               headers: { 'content-type': 'text/html' },
             },
-          ),
+          )
+        },
       },
     )
 
     assert.equal(result.error, undefined)
+    assert.equal(signals.size, 1)
     assert.equal(result.matches.length, 1)
     assert.match(result.matches[0].excerpt, /needle is here/)
+  })
+
+  it('reuses one timeout signal across redirects', async () => {
+    const signals = new Set<AbortSignal>()
+    let calls = 0
+    const result = await openUrl(
+      {
+        url: 'https://example.com/start',
+      },
+      {
+        resolveHostname: async () => ['93.184.216.34'],
+        fetchFn: async (_url, init) => {
+          if (init?.signal) signals.add(init.signal)
+          calls += 1
+          if (calls === 1) {
+            return new Response(null, {
+              status: 302,
+              headers: { location: 'https://example.com/end' },
+            })
+          }
+
+          return new Response('<html><body>Done.</body></html>', {
+            headers: { 'content-type': 'text/html' },
+          })
+        },
+      },
+    )
+
+    assert.equal(result.error, undefined)
+    assert.equal(result.text, 'Done.')
+    assert.equal(signals.size, 1)
   })
 })

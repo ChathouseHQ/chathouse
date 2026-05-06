@@ -116,12 +116,24 @@ export function applyDateMath(input: DateMathInput) {
     case 'weeks':
       result.setUTCDate(result.getUTCDate() + amount * 7)
       break
-    case 'months':
-      result.setUTCMonth(result.getUTCMonth() + amount)
+    case 'months': {
+      const originalDay = result.getUTCDate()
+      const targetYear = result.getUTCFullYear()
+      const targetMonth = result.getUTCMonth() + amount
+      const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+      result.setUTCDate(1)
+      result.setUTCFullYear(targetYear, targetMonth, Math.min(originalDay, lastDay))
       break
-    case 'years':
-      result.setUTCFullYear(result.getUTCFullYear() + amount)
+    }
+    case 'years': {
+      const originalDay = result.getUTCDate()
+      const targetYear = result.getUTCFullYear() + amount
+      const targetMonth = result.getUTCMonth()
+      const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+      result.setUTCDate(1)
+      result.setUTCFullYear(targetYear, targetMonth, Math.min(originalDay, lastDay))
       break
+    }
   }
 
   const timeZone = input.timeZone || 'UTC'

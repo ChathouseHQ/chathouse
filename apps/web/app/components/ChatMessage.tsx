@@ -248,9 +248,15 @@ function WebSearchSourceItem({ source }: { source: WebSearchSource }) {
 }
 
 function WebSearchPanel({ webSearches }: { webSearches: WebSearchActivity[] }) {
+  const isSearching = webSearches.some((search) => search.status === 'searching')
+  const [open, setOpen] = useState(isSearching)
+
+  useEffect(() => {
+    if (isSearching) setOpen(true)
+  }, [isSearching])
+
   if (webSearches.length === 0) return null
 
-  const isSearching = webSearches.some((search) => search.status === 'searching')
   const sourceCount = webSearches.reduce((count, search) => count + search.sources.length, 0)
   const label = isSearching
     ? 'Searching the web'
@@ -261,7 +267,8 @@ function WebSearchPanel({ webSearches }: { webSearches: WebSearchActivity[] }) {
   return (
     <details
       className="not-prose border-surface-200 bg-surface-50/80 group mb-3 w-full overflow-hidden rounded-xl border"
-      defaultOpen={isSearching}
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
     >
       <summary className="hover:bg-surface-100 flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm transition-colors [&::-webkit-details-marker]:hidden">
         <span className="bg-primary-100 text-primary-700 flex h-6 w-6 shrink-0 items-center justify-center rounded-full">

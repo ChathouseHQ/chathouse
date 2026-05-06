@@ -31,9 +31,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   const messages = await attachWebSearchesToMessages(chat.messages)
 
-  const hasPendingMessage = messages.some(
-    (m: { status: string }) => m.status === 'pending' || m.status === 'processing',
-  )
+  const hasPendingMessage = messages.some((m) => {
+    const status = (m as { status?: string }).status
+    return status === 'pending' || status === 'processing'
+  })
 
   return {
     messages,

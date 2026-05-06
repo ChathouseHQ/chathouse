@@ -9,6 +9,8 @@ describe('calculator tools', () => {
     assert.equal(calculateExpression('2 + 3 * 4').result, 14)
     assert.equal(calculateExpression('sqrt(81) + pow(2, 3)').result, 17)
     assert.equal(calculateExpression('2 ^ 3 ^ 2').result, 512)
+    assert.equal(calculateExpression('-2 ^ 2').result, -4)
+    assert.equal(calculateExpression('2 ^ -2').result, 0.25)
   })
 
   it('rejects unsupported expressions', () => {
@@ -33,6 +35,25 @@ describe('date and time tools', () => {
     })
 
     assert.equal(result.result, '2026-05-19T12:00:00.000Z')
+  })
+
+  it('clamps overflowing calendar months and years', () => {
+    assert.equal(
+      applyDateMath({
+        baseDate: '2024-01-31T12:00:00.000Z',
+        amount: 1,
+        unit: 'months',
+      }).result,
+      '2024-02-29T12:00:00.000Z',
+    )
+    assert.equal(
+      applyDateMath({
+        baseDate: '2024-02-29T12:00:00.000Z',
+        amount: 1,
+        unit: 'years',
+      }).result,
+      '2025-02-28T12:00:00.000Z',
+    )
   })
 
   it('calculates date differences', () => {

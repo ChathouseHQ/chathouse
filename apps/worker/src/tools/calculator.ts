@@ -266,10 +266,10 @@ class ExpressionParser {
   }
 
   private parseTerm(): number {
-    let value = this.parsePower()
+    let value = this.parseUnary()
     while (this.matchOperator('*') || this.matchOperator('/') || this.matchOperator('%')) {
       const operator = this.previous().value
-      const right = this.parsePower()
+      const right = this.parseUnary()
       if (operator === '*') value *= right
       else if (operator === '/') value /= right
       else value %= right
@@ -278,15 +278,15 @@ class ExpressionParser {
   }
 
   private parsePower(): number {
-    const value = this.parseUnary()
+    const value = this.parsePrimary()
     if (!this.matchOperator('^')) return value
-    return value ** this.parsePower()
+    return value ** this.parseUnary()
   }
 
   private parseUnary(): number {
     if (this.matchOperator('+')) return this.parseUnary()
     if (this.matchOperator('-')) return -this.parseUnary()
-    return this.parsePrimary()
+    return this.parsePower()
   }
 
   private parsePrimary(): number {

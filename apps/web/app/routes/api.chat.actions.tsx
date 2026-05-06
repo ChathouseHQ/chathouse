@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { data, type ActionFunctionArgs } from 'react-router'
 import { z } from 'zod'
 
+import { isMissingColumnError } from '~/lib/db-errors.server'
 import { db } from '~/lib/db.server'
 import { requireAuth } from '~/lib/session.server'
 
@@ -126,8 +127,11 @@ export async function action({ request }: ActionFunctionArgs) {
                 WHERE id = ${newMessageId}
               `
             }
-          } catch {
-            // Branching should still work if web search metadata has not been migrated yet.
+          } catch (reason) {
+            if (!isMissingColumnError(reason, 'webSearches')) {
+              console.error('Failed to copy message web searches while branching chat:', reason)
+              throw reason
+            }
           }
 
           if (msg.files.length > 0) {

@@ -316,7 +316,7 @@ export async function streamAIResponse(
     ...buildCalculatorTools(),
     ...buildDateTimeTools(),
     ...buildPageReaderTools(),
-    ...(webSearchTools ?? {}),
+    ...webSearchTools,
   }
   const combinedSystemPrompt = userSystemPrompt
     ? `${BASE_SYSTEM_PROMPT}${TOOL_SYSTEM_PROMPT}\n\nAdditional instructions from user:\n${userSystemPrompt}`
