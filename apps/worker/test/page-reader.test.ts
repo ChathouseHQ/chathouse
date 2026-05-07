@@ -16,13 +16,23 @@ describe('page reader tools', () => {
   })
 
   it('blocks local URLs before fetching', async () => {
-    const result = await openUrl({
-      url: 'http://127.0.0.1/admin',
-    })
+    let calls = 0
+    const result = await openUrl(
+      {
+        url: 'http://127.0.0.1/admin',
+      },
+      {
+        fetchFn: async () => {
+          calls += 1
+          return new Response()
+        },
+      },
+    )
 
     assert.equal(result.text, undefined)
     assert.equal(result.error?.code, 'network_error')
     assert.match(result.error?.message ?? '', /blocked/i)
+    assert.equal(calls, 0)
   })
 
   it('finds literal text in fetched page content', async () => {
@@ -84,5 +94,6 @@ describe('page reader tools', () => {
     assert.equal(result.error, undefined)
     assert.equal(result.text, 'Done.')
     assert.equal(signals.size, 1)
+    assert.equal(calls, 2)
   })
 })

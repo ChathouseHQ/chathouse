@@ -14,12 +14,15 @@ function stringifyUnknown(value: unknown): string {
 
 export function isMissingColumnError(error: unknown, columnName: string): boolean {
   const text = stringifyUnknown(error)
+  const lowerText = text.toLowerCase()
+  const lowerColumnName = columnName.toLowerCase()
 
   return (
-    text.includes(columnName) &&
+    lowerText.includes(lowerColumnName) &&
     (/unknown column/i.test(text) ||
       /no such column/i.test(text) ||
       /column .*does not exist/i.test(text) ||
+      /\b42703\b/.test(text) ||
       /\b1054\b/.test(text) ||
       /\bP2022\b/.test(text))
   )

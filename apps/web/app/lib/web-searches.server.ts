@@ -1,3 +1,6 @@
+import { createLogger } from '@chathouse/logger'
+
+import { isMissingColumnError } from './db-errors.server'
 import { db } from './db.server'
 import { parseWebSearches, type WebSearchActivity } from './web-searches'
 
@@ -5,6 +8,8 @@ type WebSearchRow = {
   id: string
   webSearches: string | null
 }
+
+const logger = createLogger('web:web-searches')
 
 export async function getMessageWebSearches(messageId: string): Promise<WebSearchActivity[]> {
   try {
@@ -16,8 +21,10 @@ export async function getMessageWebSearches(messageId: string): Promise<WebSearc
     `
 
     return parseWebSearches(rows[0]?.webSearches)
-  } catch {
-    return []
+  } catch (err) {
+    if (isMissingColumnError(err, 'webSearches')) return []
+    logger.error('Failed to load message web searches:', err)
+    throw err
   }
 }
 
@@ -38,7 +45,12 @@ export async function attachWebSearchesToMessages<T extends { id: string }>(
       ...message,
       webSearches: byMessageId.get(message.id) ?? [],
     }))
-  } catch {
+  } catch (err) {
+    if (!isMissingColumnError(err, 'webSearches')) {
+      logger.error('Failed to attach web searches to messages:', err)
+      throw err
+    }
+
     return messages.map((message) => ({ ...message, webSearches: [] }))
   }
 }

@@ -19,6 +19,12 @@ describe('calculator tools', () => {
     assert.match(result.error ?? '', /Unsupported|Invalid/)
   })
 
+  it('rejects non-finite numeric results', () => {
+    const result = calculateExpression('1 / 0')
+    assert.equal(result.result, undefined)
+    assert.match(result.error ?? '', /finite number/i)
+  })
+
   it('converts common units and temperatures', () => {
     assert.equal(convertUnits({ value: 1, from: 'km', to: 'm' }).result, 1000)
     assert.equal(convertUnits({ value: 32, from: 'fahrenheit', to: 'celsius' }).result, 0)

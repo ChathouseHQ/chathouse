@@ -310,8 +310,8 @@ function WebSearchPanel({ webSearches }: { webSearches: WebSearchActivity[] }) {
 
             {search.sources.length > 0 && (
               <ul className="space-y-2">
-                {search.sources.map((source) => (
-                  <WebSearchSourceItem key={source.url} source={source} />
+                {search.sources.map((source, index) => (
+                  <WebSearchSourceItem key={`${source.url}:${index}`} source={source} />
                 ))}
               </ul>
             )}

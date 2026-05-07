@@ -43,8 +43,14 @@ const convertUnitsInputSchema = jsonSchema<ConvertUnitsInput>({
   type: 'object',
   properties: {
     value: { type: 'number', description: 'Numeric value to convert.' },
-    from: { type: 'string', description: 'Source unit, such as km, mi, kg, lb, c, f, usd.' },
-    to: { type: 'string', description: 'Target unit, such as km, mi, kg, lb, c, f, usd.' },
+    from: {
+      type: 'string',
+      description: 'Source unit, such as km, mi, m, cm, kg, g, lb, oz, l, ml, c, f.',
+    },
+    to: {
+      type: 'string',
+      description: 'Target unit, such as km, mi, m, cm, kg, g, lb, oz, l, ml, c, f.',
+    },
   },
   required: ['value', 'from', 'to'],
   additionalProperties: false,
