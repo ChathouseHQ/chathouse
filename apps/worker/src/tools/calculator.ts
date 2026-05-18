@@ -45,11 +45,13 @@ const convertUnitsInputSchema = jsonSchema<ConvertUnitsInput>({
     value: { type: 'number', description: 'Numeric value to convert.' },
     from: {
       type: 'string',
-      description: 'Source unit, such as km, mi, m, cm, kg, g, lb, oz, l, ml, c, f.',
+      description:
+        'Source unit. Supported: length (mm, cm, m, km, in, ft, yd, mi), mass (g, kg, oz, lb), volume (ml, l, tsp, tbsp, cup, pt, qt, gal), temperature (c, f, k).',
     },
     to: {
       type: 'string',
-      description: 'Target unit, such as km, mi, m, cm, kg, g, lb, oz, l, ml, c, f.',
+      description:
+        'Target unit. Supported: length (mm, cm, m, km, in, ft, yd, mi), mass (g, kg, oz, lb), volume (ml, l, tsp, tbsp, cup, pt, qt, gal), temperature (c, f, k).',
     },
   },
   required: ['value', 'from', 'to'],
