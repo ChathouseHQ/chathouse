@@ -46,6 +46,7 @@ services:
       - DATABASE_URL=mysql://${MARIADB_USER:-chathouse}:${MARIADB_PASSWORD:-chathouse}@mariadb:3306/${MARIADB_DATABASE:-chathouse}
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY_BASE=${SECRET_KEY_BASE:?Set SECRET_KEY_BASE in .env (openssl rand -base64 32)}
+      - BRAVE_SEARCH_API_KEY=${BRAVE_SEARCH_API_KEY:-}
     volumes:
       - uploads_data:/app/data/uploads
     depends_on:

@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { data, type ActionFunctionArgs } from 'react-router'
 import { z } from 'zod'
 
+import { isMissingColumnError } from '~/lib/db-errors.server'
 import { db } from '~/lib/db.server'
 import { requireAuth } from '~/lib/session.server'
 
@@ -110,6 +111,28 @@ export async function action({ request }: ActionFunctionArgs) {
               createdAt: msg.createdAt,
             },
           })
+
+          try {
+            const webSearchRows = await tx.$queryRaw<Array<{ webSearches: string | null }>>`
+              SELECT webSearches
+              FROM messages
+              WHERE id = ${msg.id}
+              LIMIT 1
+            `
+            const webSearches = webSearchRows[0]?.webSearches
+            if (webSearches) {
+              await tx.$executeRaw`
+                UPDATE messages
+                SET webSearches = ${webSearches}
+                WHERE id = ${newMessageId}
+              `
+            }
+          } catch (reason) {
+            if (!isMissingColumnError(reason, 'webSearches')) {
+              console.error('Failed to copy message web searches while branching chat:', reason)
+              throw reason
+            }
+          }
 
           if (msg.files.length > 0) {
             await tx.file.createMany({

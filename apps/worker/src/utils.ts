@@ -2,12 +2,21 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { decrypt, getModelMetadata, type Provider, type ReasoningLevel } from '@chathouse/database'
-import { streamText, type ModelMessage, type UserContent } from 'ai'
+import { stepCountIs, streamText, type ModelMessage, type UserContent } from 'ai'
 import { existsSync } from 'fs'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
 import { db, redis } from './config.js'
+import { buildCalculatorTools } from './tools/calculator.js'
+import { buildDateTimeTools } from './tools/date-time.js'
+import { buildPageReaderTools } from './tools/page-reader.js'
+import {
+  buildWebSearchTools,
+  type WebSearchError,
+  type WebSearchSource,
+  type WebSearchToolEvent,
+} from './tools/web-search.js'
 
 function resolveUploadDir(): string {
   if (process.env.UPLOAD_DIR) return process.env.UPLOAD_DIR
@@ -35,6 +44,12 @@ const BASE_SYSTEM_PROMPT = `You are a helpful AI assistant. When responding:
 - Use headers (##, ###) to organize longer responses
 - Use > for quotes when relevant
 - Keep responses concise but comprehensive`
+
+const TOOL_SYSTEM_PROMPT = [
+  '',
+  '',
+  'Tools are available for web research, page reading, exact arithmetic, unit conversion, and date/time work. Use tools when they improve accuracy: search the web for current, fast-changing, source-sensitive, or precisely attributable information; open specific public URLs when the user provides a link or a search result needs closer reading; use calculator/date tools for exact math, conversions, current time, and calendar calculations. Do not use tools for simple stable facts, creative writing, or information already provided by the user. When web search or page reading influenced the answer, cite the source URLs in markdown. If a tool fails or returns no relevant results, say that briefly instead of inventing evidence.',
+].join('\n')
 
 export function isOpenAIModelId(modelId: string): boolean {
   const id = modelId.toLowerCase()
@@ -125,9 +140,20 @@ function getStreamChannel(messageId: string): string {
 }
 
 interface StreamChunk {
-  type: 'delta' | 'done' | 'error'
+  type: 'delta' | 'done' | 'error' | 'webSearch'
   content?: string
   error?: string
+  webSearch?: WebSearchActivity
+}
+
+interface WebSearchActivity {
+  id: string
+  query: string
+  status: 'searching' | 'complete' | 'error'
+  sources: WebSearchSource[]
+  error?: WebSearchError
+  startedAt: string
+  completedAt?: string
 }
 
 type StreamTextOptions = Parameters<typeof streamText>[0]
@@ -216,6 +242,42 @@ function usesAnthropicAdaptiveThinking(modelId: string): boolean {
   )
 }
 
+async function saveMessageWebSearches(
+  messageId: string,
+  webSearches: WebSearchActivity[],
+): Promise<void> {
+  const value = webSearches.length > 0 ? JSON.stringify(webSearches) : null
+  try {
+    await db.$executeRaw`UPDATE messages SET webSearches = ${value} WHERE id = ${messageId}`
+  } catch {
+    // Web search metadata should not block the model response if migrations lag behind the worker.
+  }
+}
+
+function mergeWebSearchEvent(
+  existingSearches: WebSearchActivity[],
+  event: WebSearchToolEvent,
+): WebSearchActivity[] {
+  const now = new Date().toISOString()
+  const index = existingSearches.findIndex((item) => item.id === event.id)
+  const previous = index >= 0 ? existingSearches[index] : undefined
+  const next: WebSearchActivity = {
+    id: event.id,
+    query: event.query,
+    status: event.status,
+    sources: event.sources,
+    ...(event.error ? { error: event.error } : {}),
+    startedAt: previous?.startedAt ?? now,
+    ...(event.status === 'searching' ? {} : { completedAt: now }),
+  }
+
+  if (index === -1) return [...existingSearches, next]
+
+  const merged = [...existingSearches]
+  merged[index] = next
+  return merged
+}
+
 export async function streamAIResponse(
   userId: string,
   modelId: string,
@@ -231,9 +293,34 @@ export async function streamAIResponse(
   const apiKey = await getApiKey(userId, provider)
   if (!apiKey) throw new Error(`No API key configured for ${provider}`)
 
+  let webSearches: WebSearchActivity[] = []
+  await saveMessageWebSearches(messageId, webSearches)
+
+  const channel = getStreamChannel(messageId)
+  const publishWebSearch = async (event: WebSearchToolEvent) => {
+    webSearches = mergeWebSearchEvent(webSearches, event)
+    const webSearch = webSearches.find((item) => item.id === event.id)
+    if (!webSearch) return
+
+    try {
+      await saveMessageWebSearches(messageId, webSearches)
+      const streamChunk: StreamChunk = { type: 'webSearch', webSearch }
+      await redis.publish(channel, JSON.stringify(streamChunk))
+    } catch {
+      // Search UI events are best-effort; the answer should keep streaming.
+    }
+  }
+
+  const webSearchTools = buildWebSearchTools({ onEvent: publishWebSearch })
+  const tools = {
+    ...buildCalculatorTools(),
+    ...buildDateTimeTools(),
+    ...buildPageReaderTools(),
+    ...webSearchTools,
+  }
   const combinedSystemPrompt = userSystemPrompt
-    ? `${BASE_SYSTEM_PROMPT}\n\nAdditional instructions from user:\n${userSystemPrompt}`
-    : BASE_SYSTEM_PROMPT
+    ? `${BASE_SYSTEM_PROMPT}${TOOL_SYSTEM_PROMPT}\n\nAdditional instructions from user:\n${userSystemPrompt}`
+    : `${BASE_SYSTEM_PROMPT}${TOOL_SYSTEM_PROMPT}`
 
   const allMessages = [{ role: 'system' as const, content: combinedSystemPrompt }, ...messages]
 
@@ -257,11 +344,17 @@ export async function streamAIResponse(
   }
 
   const providerOptions = buildProviderOptions(provider, modelId, reasoningEffort)
-  const channel = getStreamChannel(messageId)
   let fullContent = ''
 
   try {
-    const result = streamText({ model, messages: allMessages, providerOptions })
+    const result = streamText({
+      model,
+      messages: allMessages,
+      providerOptions,
+      tools,
+      toolChoice: 'auto',
+      stopWhen: stepCountIs(6),
+    })
 
     for await (const chunk of result.textStream) {
       fullContent += chunk

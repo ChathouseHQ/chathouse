@@ -15,15 +15,18 @@ import {
 } from 'react-router'
 
 import type { ReasoningLevel } from '~/lib/models'
+import type { WebSearchActivity } from '~/lib/web-searches'
 
 import { ChatInput } from '~/components/ChatInput'
 import { ChatMessage } from '~/components/ChatMessage'
 import { ShareDialog } from '~/components/ShareDialog'
 import { performChatAction } from '~/lib/chat-actions'
+import { isMissingColumnError } from '~/lib/db-errors.server'
 import { db } from '~/lib/db.server'
 import { getModelsForSelectorWithMeta } from '~/lib/models.server'
 import { addChatJob } from '~/lib/queue.server'
 import { requireAuth } from '~/lib/session.server'
+import { attachWebSearchesToMessages } from '~/lib/web-searches.server'
 
 interface MessageRow {
   id: string
@@ -32,6 +35,7 @@ interface MessageRow {
   status: string
   error: string | null
   model: string | null
+  webSearches?: WebSearchActivity[]
   files: Array<{ id: string; filename: string; mimeType: string; size: number }>
 }
 
@@ -71,6 +75,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw redirect('/chat')
   }
 
+  const messages = await attachWebSearchesToMessages(chat.messages)
+
   const { models, hasConnections, totalModelsCount, connectedProviders } =
     await getModelsForSelectorWithMeta(user.id)
 
@@ -96,7 +102,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   return {
     user,
-    chat,
+    chat: { ...chat, messages },
     models,
     hasConnections,
     totalModelsCount,
@@ -162,6 +168,12 @@ export async function action({ request, params }: ActionFunctionArgs) {
       where: { messageId: lastUserMessage.id },
       select: { id: true },
     })
+
+    try {
+      await db.$executeRaw`UPDATE messages SET webSearches = NULL WHERE id = ${messageId}`
+    } catch (reason) {
+      if (!isMissingColumnError(reason, 'webSearches')) throw reason
+    }
 
     await db.message.update({
       where: { id: messageId },
@@ -360,6 +372,9 @@ export default function ChatPage() {
   const [editingContent, setEditingContent] = useState('')
 
   const [streamingContent, setStreamingContent] = useState<Record<string, string>>({})
+  const [streamingWebSearches, setStreamingWebSearches] = useState<
+    Record<string, WebSearchActivity[]>
+  >({})
   const [streamErrors, setStreamErrors] = useState<Record<string, string>>({})
   const eventSourceRef = useRef<EventSource | null>(null)
   const streamingMessageIdRef = useRef<string | null>(null)
@@ -413,6 +428,7 @@ export default function ChatPage() {
         streamingMessageIdRef.current = null
       }
       setStreamingContent({})
+      setStreamingWebSearches({})
       return
     }
 
@@ -446,6 +462,22 @@ export default function ChatPage() {
             ...prev,
             [messageId]: data.content,
           }))
+        } else if (data.type === 'webSearches' && Array.isArray(data.webSearches)) {
+          setStreamingWebSearches((prev) => ({
+            ...prev,
+            [messageId]: data.webSearches,
+          }))
+        } else if (data.type === 'webSearch' && data.webSearch) {
+          setStreamingWebSearches((prev) => {
+            const current = prev[messageId] || []
+            const index = current.findIndex((item) => item.id === data.webSearch.id)
+            const next = index === -1 ? [...current, data.webSearch] : [...current]
+            if (index !== -1) next[index] = data.webSearch
+            return {
+              ...prev,
+              [messageId]: next,
+            }
+          })
         } else if (data.type === 'delta') {
           setStreamingContent((prev) => ({
             ...prev,
@@ -650,6 +682,11 @@ export default function ChatPage() {
             const displayContent = isMessageStreaming
               ? streamingContent[message.id]
               : message.content
+            const displayWebSearches =
+              streamingWebSearches[message.id] ??
+              (message.status === 'pending' || message.status === 'processing'
+                ? []
+                : (message.webSearches ?? []))
             const hasVisibleContent = displayContent.trim().length > 0
             const effectiveError =
               streamErrors[message.id] ||
@@ -677,6 +714,7 @@ export default function ChatPage() {
                 onEdit={handleEdit}
                 onBranch={handleBranch}
                 files={message.files}
+                webSearches={displayWebSearches}
               />
             )
 

@@ -138,6 +138,16 @@ SMTP_MOCK=true
 
 Emails will be printed to the container logs instead of being sent.
 
+## Web search
+
+Chathouse can give models a web search tool backed by Brave Search. This is configured once at the application level by the self-hosting admin, not per user.
+
+| Variable               | Description                                                                 | Default   |
+| ---------------------- | --------------------------------------------------------------------------- | --------- |
+| `BRAVE_SEARCH_API_KEY` | Brave Search API key used by the worker to enable automatic chat web search | _(empty)_ |
+
+When this variable is set, models may call web search automatically for current, fast-changing, or source-sensitive questions. When it is empty, chat behavior is unchanged and no web search tool is exposed.
+
 ## Application settings
 
 These settings are configured through the Chathouse web UI under **Settings**, not through environment variables.
@@ -210,4 +220,7 @@ SMTP_USER=
 SMTP_PASSWORD=
 SMTP_FROM="Chathouse <noreply@example.com>"
 SMTP_MOCK=false
+
+# Web search tools (optional)
+# BRAVE_SEARCH_API_KEY=
 ```

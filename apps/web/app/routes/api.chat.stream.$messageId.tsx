@@ -3,6 +3,7 @@ import type { LoaderFunctionArgs } from 'react-router'
 import { db } from '~/lib/db.server'
 import { redis } from '~/lib/redis.server'
 import { requireAuth } from '~/lib/session.server'
+import { getMessageWebSearches } from '~/lib/web-searches.server'
 
 // (must match worker)
 function getStreamChannel(messageId: string): string {
@@ -30,10 +31,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     return new Response('Message not found', { status: 404 })
   }
 
+  const webSearches = await getMessageWebSearches(message.id)
+
   if (message.status === 'complete') {
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
       start(controller) {
+        if (webSearches.length > 0) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'webSearches', webSearches })}\n\n`),
+          )
+        }
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({ type: 'content', content: message.content })}\n\n`,
@@ -57,6 +65,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
       start(controller) {
+        if (webSearches.length > 0) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'webSearches', webSearches })}\n\n`),
+          )
+        }
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({ type: 'error', error: message.error || 'Unknown error' })}\n\n`,
@@ -113,6 +126,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         )
       }
 
+      if (webSearches.length > 0) {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: 'webSearches', webSearches })}\n\n`),
+        )
+      }
+
       await subscriber.subscribe(channel)
 
       subscriber.on('message', async (ch, data) => {
@@ -126,6 +145,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({ type: 'delta', content: chunk.content })}\n\n`,
+              ),
+            )
+          } else if (chunk.type === 'webSearch' && chunk.webSearch) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: 'webSearch', webSearch: chunk.webSearch })}\n\n`,
               ),
             )
           } else if (chunk.type === 'done') {
