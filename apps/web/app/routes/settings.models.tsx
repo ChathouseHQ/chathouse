@@ -26,6 +26,7 @@ import {
   setProviderModelsEnabled,
   type UserModelSetting,
 } from '~/lib/models.server'
+import { ALL_PROVIDERS } from '~/lib/providers'
 import { addModelRefreshJob } from '~/lib/queue.server'
 import { requireAuth } from '~/lib/session.server'
 import { cn } from '~/lib/utils'
@@ -379,11 +380,10 @@ export default function ModelsSettingsPage() {
   }, [allModels, searchQuery, filterProvider, showOnlyFavorites, modelSettings])
 
   const groupedModels = useMemo(() => {
-    const groups: Record<Provider, typeof filteredModels> = {
-      openai: [],
-      anthropic: [],
-      google: [],
-    }
+    const groups = Object.fromEntries(ALL_PROVIDERS.map((provider) => [provider, []])) as Record<
+      Provider,
+      typeof filteredModels
+    >
 
     for (const model of filteredModels) {
       groups[model.provider].push(model)
@@ -397,7 +397,7 @@ export default function ModelsSettingsPage() {
       <TabHeader
         icon={CpuIcon}
         label="Models"
-        description="Manage which models you want to use in your chats"
+        description="Manage which models appear in your chats"
         iconColorClass="text-teal-500"
       />
 
@@ -455,7 +455,7 @@ export default function ModelsSettingsPage() {
             >
               All
             </button>
-            {(['openai', 'anthropic', 'google'] as Provider[]).map((provider) => (
+            {ALL_PROVIDERS.map((provider) => (
               <button
                 key={provider}
                 onClick={() => setFilterProvider(provider)}
@@ -482,7 +482,7 @@ export default function ModelsSettingsPage() {
       </div>
 
       {connectedProviders.length === 0 && (
-        <Alert variant="warning" title="No API keys configured" className="mb-6">
+        <Alert variant="warning" title="No providers connected" className="mb-6">
           Connect at least one provider in the{' '}
           <Link to="/settings/connections" className="font-medium underline">
             Connections
@@ -492,7 +492,7 @@ export default function ModelsSettingsPage() {
       )}
 
       <div className="space-y-6">
-        {(['openai', 'anthropic', 'google'] as Provider[]).map((provider) => {
+        {ALL_PROVIDERS.map((provider) => {
           const models = groupedModels[provider]
           const isConnected = connectedProviders.includes(provider)
 
@@ -543,7 +543,18 @@ export default function ModelsSettingsPage() {
                   </div>
                 ) : (
                   <div className="p-8 text-center">
-                    <Text colour="muted">No models found</Text>
+                    {provider === 'ollama' ? (
+                      <>
+                        <Text as="p" colour="muted">
+                          No Ollama models found
+                        </Text>
+                        <Text as="p" size="sm" colour="muted" className="mt-1">
+                          Pull a model in Ollama, then refresh models.
+                        </Text>
+                      </>
+                    ) : (
+                      <Text colour="muted">No models found</Text>
+                    )}
                   </div>
                 )}
               </Panel>

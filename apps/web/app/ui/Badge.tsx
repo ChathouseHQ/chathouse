@@ -1,6 +1,14 @@
 import { cn } from '~/lib/utils'
 
-type BadgeVariant = 'default' | 'openai' | 'anthropic' | 'google' | 'success' | 'warning' | 'error'
+type BadgeVariant =
+  | 'default'
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'ollama'
+  | 'success'
+  | 'warning'
+  | 'error'
 type BadgeSize = 'sm' | 'md' | 'lg'
 
 interface BadgeProps {
@@ -15,6 +23,7 @@ const variantClasses: Record<BadgeVariant, string> = {
   openai: 'bg-emerald-100 text-emerald-700',
   anthropic: 'bg-orange-100 text-orange-700',
   google: 'bg-blue-100 text-blue-700',
+  ollama: 'bg-surface-100 text-surface-800',
   success: 'bg-green-100 text-green-700',
   warning: 'bg-amber-100 text-amber-700',
   error: 'bg-red-100 text-red-700',

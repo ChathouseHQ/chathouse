@@ -28,7 +28,7 @@ export default function AboutSettingsPage() {
       <div className="text-surface-900 mt-8 space-y-4 text-sm leading-relaxed">
         <p>
           Chathouse is an open-source, self-hosted AI chat application. Connect your own API keys
-          and use models from OpenAI, Anthropic, Google, and others from a single interface.
+          and use models from OpenAI, Anthropic, Google, Ollama, and others from a single interface.
         </p>
 
         <p>

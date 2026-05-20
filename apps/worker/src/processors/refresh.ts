@@ -3,6 +3,7 @@ import { createLogger } from '@chathouse/logger'
 import { Job } from 'bullmq'
 
 import { db } from '../config.js'
+import { fetchOpenAICompatibleModelIds } from '../ollama.js'
 import { formatModelName, isGoogleChatModelId, isOpenAIModelId } from '../utils.js'
 
 const logger = createLogger('worker:refresh')
@@ -57,7 +58,7 @@ async function refreshModelsForUser(userId: string, specificProvider?: string): 
       userId,
       ...(specificProvider && { provider: specificProvider }),
     },
-    select: { provider: true, encryptedKey: true },
+    select: { provider: true, encryptedKey: true, baseUrl: true },
   })
 
   const refreshedProviders = new Set<string>()
@@ -67,16 +68,21 @@ async function refreshModelsForUser(userId: string, specificProvider?: string): 
     name: string
   }> = []
 
-  for (const { provider, encryptedKey } of apiKeys) {
-    let apiKey: string
+  for (const { provider, encryptedKey, baseUrl } of apiKeys) {
+    let apiKey: string | undefined
 
-    try {
-      apiKey = decrypt(encryptedKey)
-    } catch {
-      logger.error(
-        `Failed to decrypt API key for ${provider} (user: ${userId}). ` +
-          `This usually means SECRET_KEY_BASE changed since the key was saved.`,
-      )
+    if (encryptedKey) {
+      try {
+        apiKey = decrypt(encryptedKey)
+      } catch {
+        logger.error(
+          `Failed to decrypt API key for ${provider} (user: ${userId}). ` +
+            `This usually means SECRET_KEY_BASE changed since the key was saved.`,
+        )
+        continue
+      }
+    } else if (provider !== 'ollama') {
+      logger.error(`Missing API key for ${provider} (user: ${userId})`)
       continue
     }
 
@@ -85,13 +91,17 @@ async function refreshModelsForUser(userId: string, specificProvider?: string): 
 
       switch (provider) {
         case 'openai':
-          modelIds = await fetchOpenAIModels(apiKey)
+          modelIds = await fetchOpenAIModels(apiKey!)
           break
         case 'anthropic':
-          modelIds = await fetchAnthropicModels(apiKey)
+          modelIds = await fetchAnthropicModels(apiKey!)
           break
         case 'google':
-          modelIds = await fetchGoogleModels(apiKey)
+          modelIds = await fetchGoogleModels(apiKey!)
+          break
+        case 'ollama':
+          if (!baseUrl) throw new Error('Missing Ollama base URL')
+          modelIds = await fetchOpenAICompatibleModelIds(baseUrl, apiKey)
           break
       }
 

@@ -1,6 +1,8 @@
+import type { Provider } from '~/lib/models'
+
+import { PROVIDER_NAMES } from '~/lib/providers'
 import { cn } from '~/lib/utils'
 
-type Provider = 'openai' | 'anthropic' | 'google'
 type LogoSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl'
 
 interface ProviderLogoProps {
@@ -22,6 +24,7 @@ const backgroundClasses: Record<Provider, string> = {
   openai: 'bg-[#10a37f]/10',
   anthropic: 'bg-[#d97757]/10',
   google: 'bg-[#4285F4]/10',
+  ollama: 'bg-surface-900/10',
 }
 
 function OpenAILogo({ className }: { className?: string }) {
@@ -64,10 +67,27 @@ function GoogleLogo({ className }: { className?: string }) {
   )
 }
 
+function OllamaLogo({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M12 3.25c5.05 0 8.75 3.72 8.75 8.75s-3.7 8.75-8.75 8.75S3.25 17.03 3.25 12 6.95 3.25 12 3.25Z"
+        stroke="currentColor"
+        strokeWidth="2.2"
+      />
+      <path
+        d="M8.75 12c0-2.12 1.27-3.55 3.25-3.55s3.25 1.43 3.25 3.55-1.27 3.55-3.25 3.55S8.75 14.12 8.75 12Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
 const logoColors: Record<Provider, string> = {
   openai: 'text-black',
   anthropic: 'text-[#d97757]',
   google: '',
+  ollama: 'text-surface-900',
 }
 
 export function ProviderLogo({
@@ -82,6 +102,7 @@ export function ProviderLogo({
     openai: OpenAILogo,
     anthropic: AnthropicLogo,
     google: GoogleLogo,
+    ollama: OllamaLogo,
   }[provider]
 
   if (showBackground) {
@@ -102,8 +123,4 @@ export function ProviderLogo({
   return <Logo className={cn(sizes.icon, logoColors[provider], className)} />
 }
 
-export const PROVIDER_NAMES: Record<Provider, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic',
-  google: 'Google',
-}
+export { PROVIDER_NAMES }

@@ -1,14 +1,12 @@
 import type { ChatJobData, TitleJobData } from '@chathouse/database'
 
-import { createAnthropic } from '@ai-sdk/anthropic'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { createOpenAI } from '@ai-sdk/openai'
 import { createLogger } from '@chathouse/logger'
 import { generateText, type ModelMessage } from 'ai'
 import { Job } from 'bullmq'
 
 import { db } from '../config.js'
 import {
+  createLanguageModelForProvider,
   getApiKey,
   streamAIResponse,
   DEFAULT_TITLE_CHAR_LIMIT,
@@ -134,6 +132,31 @@ const TITLE_MODELS: Array<{ modelId: string; provider: 'openai' | 'anthropic' | 
   { modelId: 'claude-haiku-4-5', provider: 'anthropic' },
 ]
 
+async function getOllamaTitleModels(userId: string): Promise<string[]> {
+  const models = await db.cachedModel.findMany({
+    where: { userId, provider: 'ollama' },
+    select: { modelId: true },
+  })
+
+  if (models.length === 0) return []
+
+  const settings = await db.enabledModel.findMany({
+    where: { userId, modelId: { in: models.map((model) => model.modelId) } },
+    select: { modelId: true, enabled: true, favorite: true },
+  })
+  const settingsMap = new Map(settings.map((setting) => [setting.modelId, setting]))
+
+  return models
+    .filter((model) => settingsMap.get(model.modelId)?.enabled ?? true)
+    .toSorted((a, b) => {
+      const aFavorite = settingsMap.get(a.modelId)?.favorite ?? false
+      const bFavorite = settingsMap.get(b.modelId)?.favorite ?? false
+      if (aFavorite !== bFavorite) return bFavorite ? 1 : -1
+      return a.modelId.localeCompare(b.modelId)
+    })
+    .map((model) => model.modelId)
+}
+
 export async function processTitleJob(job: Job<TitleJobData>) {
   const { chatId, userId, firstMessage, strategy } = job.data
 
@@ -151,24 +174,7 @@ export async function processTitleJob(job: Job<TitleJobData>) {
         if (!apiKey) continue
 
         try {
-          let aiModel
-          switch (provider) {
-            case 'openai': {
-              const openai = createOpenAI({ apiKey })
-              aiModel = openai(modelId)
-              break
-            }
-            case 'anthropic': {
-              const anthropic = createAnthropic({ apiKey })
-              aiModel = anthropic(modelId)
-              break
-            }
-            case 'google': {
-              const google = createGoogleGenerativeAI({ apiKey })
-              aiModel = google(modelId)
-              break
-            }
-          }
+          const aiModel = await createLanguageModelForProvider(userId, provider, modelId)
 
           const result = await generateText({
             model: aiModel,
@@ -185,6 +191,29 @@ export async function processTitleJob(job: Job<TitleJobData>) {
           break
         } catch {
           continue
+        }
+      }
+
+      if (!generated) {
+        for (const modelId of await getOllamaTitleModels(userId)) {
+          try {
+            const aiModel = await createLanguageModelForProvider(userId, 'ollama', modelId)
+            const result = await generateText({
+              model: aiModel,
+              messages: [
+                {
+                  role: 'user',
+                  content: `Generate a very short title (4-6 words max) for a chat that starts with this message. Return ONLY the title, no quotes or punctuation:\n\n${firstMessage.slice(0, 500)}`,
+                },
+              ],
+            })
+
+            title = result.text.trim().slice(0, 100)
+            generated = true
+            break
+          } catch {
+            continue
+          }
         }
       }
 

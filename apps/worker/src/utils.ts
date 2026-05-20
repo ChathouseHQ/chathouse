@@ -1,6 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { decrypt, getModelMetadata, type Provider, type ReasoningLevel } from '@chathouse/database'
 import { stepCountIs, streamText, type ModelMessage, type UserContent } from 'ai'
 import { existsSync } from 'fs'
@@ -8,6 +9,8 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 
 import { db, redis } from './config.js'
+import { resolveProviderForModelId } from './model-utils.js'
+import { OLLAMA_DEFAULT_BASE_URL } from './ollama.js'
 import { buildCalculatorTools } from './tools/calculator.js'
 import { buildDateTimeTools } from './tools/date-time.js'
 import { buildPageReaderTools } from './tools/page-reader.js'
@@ -51,53 +54,84 @@ const TOOL_SYSTEM_PROMPT = [
   'Tools are available for web research, page reading, exact arithmetic, unit conversion, and date/time work. Use tools when they improve accuracy: search the web for current, fast-changing, source-sensitive, or precisely attributable information; open specific public URLs when the user provides a link or a search result needs closer reading; use calculator/date tools for exact math, conversions, current time, and calendar calculations. Do not use tools for simple stable facts, creative writing, or information already provided by the user. When web search or page reading influenced the answer, cite the source URLs in markdown. If a tool fails or returns no relevant results, say that briefly instead of inventing evidence.',
 ].join('\n')
 
-export function isOpenAIModelId(modelId: string): boolean {
-  const id = modelId.toLowerCase()
-  if (!(id.startsWith('gpt-') || /^o\d/.test(id) || id.startsWith('chatgpt'))) {
-    return false
-  }
+async function getProviderForModel(userId: string, modelId: string): Promise<Provider | undefined> {
+  const cachedModel = await db.cachedModel.findUnique({
+    where: { userId_modelId: { userId, modelId } },
+    select: { provider: true },
+  })
 
-  return !['audio', 'image', 'realtime', 'transcribe', 'tts', 'whisper'].some((part) =>
-    id.includes(part),
-  )
-}
-
-export function isGoogleChatModelId(modelId: string): boolean {
-  const id = modelId.toLowerCase()
-  if (!id.startsWith('gemini')) return false
-
-  return !['audio', 'embedding', 'image', 'live', 'native-audio', 'robotics', 'tts'].some((part) =>
-    id.includes(part),
-  )
-}
-
-function getProviderForModel(modelId: string): Provider | undefined {
-  const id = modelId.toLowerCase()
-
-  if (isOpenAIModelId(id)) {
-    return 'openai'
-  }
-
-  if (id.startsWith('claude')) {
-    return 'anthropic'
-  }
-
-  if (id.startsWith('gemini')) {
-    return 'google'
-  }
-
-  return undefined
+  return resolveProviderForModelId(modelId, cachedModel?.provider)
 }
 
 export async function getApiKey(userId: string, provider: Provider): Promise<string | null> {
   const apiKey = await db.apiKey.findUnique({
     where: { userId_provider: { userId, provider } },
   })
-  if (!apiKey) return null
+  if (!apiKey?.encryptedKey) return null
   try {
     return decrypt(apiKey.encryptedKey)
   } catch {
     return null
+  }
+}
+
+export async function getProviderConnection(
+  userId: string,
+  provider: Provider,
+): Promise<{ apiKey?: string; baseUrl?: string } | null> {
+  const connection = await db.apiKey.findUnique({
+    where: { userId_provider: { userId, provider } },
+  })
+
+  if (!connection) return null
+
+  let apiKey: string | undefined
+  if (connection.encryptedKey) {
+    try {
+      apiKey = decrypt(connection.encryptedKey)
+    } catch {
+      return null
+    }
+  }
+
+  return {
+    ...(apiKey ? { apiKey } : {}),
+    ...(connection.baseUrl ? { baseUrl: connection.baseUrl } : {}),
+  }
+}
+
+export async function createLanguageModelForProvider(
+  userId: string,
+  provider: Provider,
+  modelId: string,
+) {
+  const connection = await getProviderConnection(userId, provider)
+
+  switch (provider) {
+    case 'openai': {
+      if (!connection?.apiKey) throw new Error('No API key configured for openai')
+      const openai = createOpenAI({ apiKey: connection.apiKey })
+      return openai(modelId)
+    }
+    case 'anthropic': {
+      if (!connection?.apiKey) throw new Error('No API key configured for anthropic')
+      const anthropic = createAnthropic({ apiKey: connection.apiKey })
+      return anthropic(modelId)
+    }
+    case 'google': {
+      if (!connection?.apiKey) throw new Error('No API key configured for google')
+      const google = createGoogleGenerativeAI({ apiKey: connection.apiKey })
+      return google(modelId)
+    }
+    case 'ollama': {
+      if (!connection) throw new Error('No Ollama connection configured')
+      const ollama = createOpenAICompatible({
+        name: 'ollama',
+        baseURL: connection.baseUrl || OLLAMA_DEFAULT_BASE_URL,
+        apiKey: connection.apiKey,
+      })
+      return ollama(modelId)
+    }
   }
 }
 
@@ -230,6 +264,8 @@ function buildProviderOptions(
         },
       }
     }
+    case 'ollama':
+      return undefined
   }
 }
 
@@ -287,11 +323,14 @@ export async function streamAIResponse(
   onChunk?: (fullContent: string) => Promise<void>,
   reasoningEffort?: ReasoningLevel,
 ): Promise<string> {
-  const provider = getProviderForModel(modelId)
+  const provider = await getProviderForModel(userId, modelId)
   if (!provider) throw new Error(`Unknown model: ${modelId}`)
 
-  const apiKey = await getApiKey(userId, provider)
-  if (!apiKey) throw new Error(`No API key configured for ${provider}`)
+  const connection = await getProviderConnection(userId, provider)
+  if (!connection) throw new Error(`No connection configured for ${provider}`)
+  if (provider !== 'ollama' && !connection.apiKey) {
+    throw new Error(`No API key configured for ${provider}`)
+  }
 
   let webSearches: WebSearchActivity[] = []
   await saveMessageWebSearches(messageId, webSearches)
@@ -324,24 +363,7 @@ export async function streamAIResponse(
 
   const allMessages = [{ role: 'system' as const, content: combinedSystemPrompt }, ...messages]
 
-  let model
-  switch (provider) {
-    case 'openai': {
-      const openai = createOpenAI({ apiKey })
-      model = openai(modelId)
-      break
-    }
-    case 'anthropic': {
-      const anthropic = createAnthropic({ apiKey })
-      model = anthropic(modelId)
-      break
-    }
-    case 'google': {
-      const google = createGoogleGenerativeAI({ apiKey })
-      model = google(modelId)
-      break
-    }
-  }
+  const model = await createLanguageModelForProvider(userId, provider, modelId)
 
   const providerOptions = buildProviderOptions(provider, modelId, reasoningEffort)
   let fullContent = ''
@@ -381,13 +403,9 @@ export async function streamAIResponse(
   }
 }
 
-export function formatModelName(modelId: string): string {
-  return modelId
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .replace(/Gpt/g, 'GPT')
-    .replace(/Gemini/g, 'Gemini')
-    .replace(/Claude/g, 'Claude')
-    .replace(/ Latest$/i, '')
-    .replace(/(\d{8})$/, '')
-}
+export {
+  formatModelName,
+  isGoogleChatModelId,
+  isOpenAIModelId,
+  resolveProviderForModelId,
+} from './model-utils.js'

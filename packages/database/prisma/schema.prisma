@@ -58,8 +58,9 @@ model UserSettings {
 model ApiKey {
   id           String   @id @default(uuid())
   userId       String
-  provider     String // 'openai' | 'anthropic' | 'google'
-  encryptedKey String   @db.Text
+  provider     String // 'openai' | 'anthropic' | 'google' | 'ollama'
+  encryptedKey String?  @db.Text
+  baseUrl      String?  @db.VarChar(512)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -185,7 +186,7 @@ model CachedModel {
   id        String   @id @default(uuid())
   userId    String
   modelId   String
-  provider  String   // 'openai' | 'anthropic' | 'google'
+  provider  String   // 'openai' | 'anthropic' | 'google' | 'ollama'
   name      String
   fetchedAt DateTime @default(now())
 
