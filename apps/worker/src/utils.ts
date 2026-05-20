@@ -94,7 +94,7 @@ async function getProviderConnection(
       apiKey = decrypt(connection.encryptedKey)
     } catch {
       logger.error(
-        `Failed to decrypt API key for ${provider} (user: ${userId}). ` +
+        `Failed to decrypt API key for ${provider}. ` +
           `This usually means SECRET_KEY_BASE changed since the key was saved.`,
       )
       if (provider !== 'ollama') return null

@@ -394,6 +394,11 @@ export default function ModelsSettingsPage() {
     return groups
   }, [filteredModels])
 
+  const visibleProviders =
+    filterProvider === 'all'
+      ? ALL_PROVIDERS
+      : ALL_PROVIDERS.filter((provider) => provider === filterProvider)
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
       <TabHeader
@@ -494,7 +499,7 @@ export default function ModelsSettingsPage() {
       )}
 
       <div className="space-y-6">
-        {ALL_PROVIDERS.map((provider) => {
+        {visibleProviders.map((provider) => {
           const models = groupedModels[provider]
           const isConnected = connectedProviders.includes(provider)
 
