@@ -380,10 +380,12 @@ export default function ModelsSettingsPage() {
   }, [allModels, searchQuery, filterProvider, showOnlyFavorites, modelSettings])
 
   const groupedModels = useMemo(() => {
-    const groups = Object.fromEntries(ALL_PROVIDERS.map((provider) => [provider, []])) as Record<
-      Provider,
-      typeof filteredModels
-    >
+    const groups: Record<Provider, typeof filteredModels> = {
+      openai: [],
+      anthropic: [],
+      google: [],
+      ollama: [],
+    }
 
     for (const model of filteredModels) {
       groups[model.provider].push(model)

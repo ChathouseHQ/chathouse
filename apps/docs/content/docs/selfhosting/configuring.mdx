@@ -163,7 +163,7 @@ Add API keys for the AI providers you want to use. Keys are encrypted at rest us
 | Google Gemini | [aistudio.google.com/app/api-keys](https://aistudio.google.com/app/api-keys)   |
 | Ollama        | API key optional. Use an Ollama or OpenWebUI base URL instead.                 |
 
-For Ollama, the base URL must be reachable from the Chathouse server and worker. Use `http://localhost:11434/v1` when Ollama runs beside the app, `http://host.docker.internal:11434/v1` when Chathouse runs in Docker and Ollama runs on the host, or `http://localhost:3000/api` for an OpenWebUI gateway.
+For Ollama, the base URL must be reachable from the Chathouse server and worker. Use `http://localhost:11434/v1` when Ollama runs beside the app, `http://host.docker.internal:11434/v1` when Chathouse runs in Docker and Ollama runs on the host, `http://localhost:3000/api` for an OpenWebUI gateway on the same host, or `http://host.docker.internal:3000/api` when Chathouse runs in Docker and OpenWebUI runs on the host.
 
 ### Models (Settings > Models)
 

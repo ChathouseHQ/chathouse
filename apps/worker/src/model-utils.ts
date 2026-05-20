@@ -1,6 +1,11 @@
 import type { Provider } from '@chathouse/database'
 
-const WORKER_PROVIDERS = ['openai', 'anthropic', 'google', 'ollama'] as const satisfies Provider[]
+const WORKER_PROVIDERS = [
+  'openai',
+  'anthropic',
+  'google',
+  'ollama',
+] as const satisfies readonly Provider[]
 
 export function isOpenAIModelId(modelId: string): boolean {
   const id = modelId.toLowerCase()

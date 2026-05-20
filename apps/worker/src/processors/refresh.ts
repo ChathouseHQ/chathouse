@@ -3,7 +3,7 @@ import { createLogger } from '@chathouse/logger'
 import { Job } from 'bullmq'
 
 import { db } from '../config.js'
-import { fetchOpenAICompatibleModelIds } from '../ollama.js'
+import { OLLAMA_DEFAULT_BASE_URL, fetchOpenAICompatibleModelIds } from '../ollama.js'
 import { formatModelName, isGoogleChatModelId, isOpenAIModelId } from '../utils.js'
 
 const logger = createLogger('worker:refresh')
@@ -79,7 +79,7 @@ async function refreshModelsForUser(userId: string, specificProvider?: string): 
           `Failed to decrypt API key for ${provider} (user: ${userId}). ` +
             `This usually means SECRET_KEY_BASE changed since the key was saved.`,
         )
-        continue
+        if (provider !== 'ollama') continue
       }
     } else if (provider !== 'ollama') {
       logger.error(`Missing API key for ${provider} (user: ${userId})`)
@@ -100,8 +100,7 @@ async function refreshModelsForUser(userId: string, specificProvider?: string): 
           modelIds = await fetchGoogleModels(apiKey!)
           break
         case 'ollama':
-          if (!baseUrl) throw new Error('Missing Ollama base URL')
-          modelIds = await fetchOpenAICompatibleModelIds(baseUrl, apiKey)
+          modelIds = await fetchOpenAICompatibleModelIds(baseUrl || OLLAMA_DEFAULT_BASE_URL, apiKey)
           break
       }
 

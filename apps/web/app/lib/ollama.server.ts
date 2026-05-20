@@ -1,6 +1,8 @@
 import { OLLAMA_DEFAULT_BASE_URL } from './providers'
 
-export function getOllamaBaseUrlCandidates(input: string): string[] {
+const OLLAMA_MODEL_FETCH_TIMEOUT_MS = 5_000
+
+function getOllamaBaseUrlCandidates(input: string): string[] {
   const value = input.trim() || OLLAMA_DEFAULT_BASE_URL
   let url: URL
 
@@ -30,7 +32,7 @@ export function getOllamaBaseUrlCandidates(input: string): string[] {
   throw new Error('Ollama base URL must be an origin, or end with /v1 or /api')
 }
 
-export function parseOpenAICompatibleModelIds(value: unknown): string[] {
+function parseOpenAICompatibleModelIds(value: unknown): string[] {
   if (!value || typeof value !== 'object' || !Array.isArray((value as { data?: unknown }).data)) {
     return []
   }
@@ -55,10 +57,12 @@ export async function validateOpenAICompatibleModelEndpoint(
   for (const baseUrl of candidates) {
     try {
       const trimmedApiKey = apiKey?.trim()
-      const response = await fetch(
-        `${baseUrl}/models`,
-        trimmedApiKey ? { headers: { Authorization: `Bearer ${trimmedApiKey}` } } : undefined,
-      )
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), OLLAMA_MODEL_FETCH_TIMEOUT_MS)
+      const response = await fetch(`${baseUrl}/models`, {
+        signal: controller.signal,
+        ...(trimmedApiKey ? { headers: { Authorization: `Bearer ${trimmedApiKey}` } } : {}),
+      }).finally(() => clearTimeout(timeout))
 
       if (!response.ok) {
         errors.push(`${baseUrl} returned ${response.status}`)
@@ -67,7 +71,13 @@ export async function validateOpenAICompatibleModelEndpoint(
 
       return { baseUrl, modelIds: parseOpenAICompatibleModelIds(await response.json()) }
     } catch (reason) {
-      errors.push(`${baseUrl}: ${reason instanceof Error ? reason.message : 'request failed'}`)
+      const message =
+        reason instanceof Error && reason.name === 'AbortError'
+          ? 'request timed out'
+          : reason instanceof Error
+            ? reason.message
+            : 'request failed'
+      errors.push(`${baseUrl}: ${message}`)
     }
   }
 

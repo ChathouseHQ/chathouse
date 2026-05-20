@@ -1,4 +1,5 @@
 export const OLLAMA_DEFAULT_BASE_URL = 'http://localhost:11434/v1'
+const OLLAMA_MODEL_FETCH_TIMEOUT_MS = 5_000
 
 export function getOllamaBaseUrlCandidates(input: string): string[] {
   const value = input.trim() || OLLAMA_DEFAULT_BASE_URL
@@ -51,10 +52,13 @@ export async function fetchOpenAICompatibleModelIds(
   fetchImpl: typeof fetch = fetch,
 ): Promise<string[]> {
   const trimmedApiKey = apiKey?.trim()
-  const response = await fetchImpl(
-    `${baseUrl.replace(/\/+$/, '')}/models`,
-    trimmedApiKey ? { headers: { Authorization: `Bearer ${trimmedApiKey}` } } : undefined,
-  )
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), OLLAMA_MODEL_FETCH_TIMEOUT_MS)
+
+  const response = await fetchImpl(`${baseUrl.replace(/\/+$/, '')}/models`, {
+    signal: controller.signal,
+    ...(trimmedApiKey ? { headers: { Authorization: `Bearer ${trimmedApiKey}` } } : {}),
+  }).finally(() => clearTimeout(timeout))
 
   if (!response.ok) {
     throw new Error(`Model list request failed with ${response.status}`)

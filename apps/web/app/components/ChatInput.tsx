@@ -677,7 +677,9 @@ export function ChatInput({
                                   {PROVIDER_NAMES[activeTab]}
                                 </Text>
                                 <Text as="p" size="sm" colour="muted">
-                                  Connect your API key to use these models
+                                  {activeTab === 'ollama'
+                                    ? 'Configure an Ollama endpoint to use local or remote models'
+                                    : 'Connect your API key to use these models'}
                                 </Text>
                               </div>
                               <Link

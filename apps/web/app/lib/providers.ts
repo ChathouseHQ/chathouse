@@ -5,7 +5,7 @@ export const ALL_PROVIDERS = [
   'anthropic',
   'google',
   'ollama',
-] as const satisfies Provider[]
+] as const satisfies readonly Provider[]
 
 export const PROVIDER_NAMES: Record<Provider, string> = {
   anthropic: 'Anthropic',

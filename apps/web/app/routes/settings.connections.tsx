@@ -116,11 +116,12 @@ export async function action({ request }: ActionFunctionArgs) {
     const apiKey = formData.get('apiKey') as string
 
     if (provider === 'ollama') {
-      const baseUrlInput = (formData.get('baseUrl') as string) || OLLAMA_DEFAULT_BASE_URL
+      const trimmedApiKey = ((formData.get('apiKey') as string) || '').trim()
+      const trimmedBaseUrl = ((formData.get('baseUrl') as string) || OLLAMA_DEFAULT_BASE_URL).trim()
       let validated: { baseUrl: string; modelIds: string[] }
 
       try {
-        validated = await validateOpenAICompatibleModelEndpoint(baseUrlInput, apiKey)
+        validated = await validateOpenAICompatibleModelEndpoint(trimmedBaseUrl, trimmedApiKey)
       } catch (reason) {
         return {
           error: reason instanceof Error ? reason.message : 'Could not reach the model endpoint',
@@ -135,11 +136,11 @@ export async function action({ request }: ActionFunctionArgs) {
         create: {
           userId: user.id,
           provider,
-          encryptedKey: apiKey?.trim() ? encrypt(apiKey.trim()) : null,
+          encryptedKey: trimmedApiKey ? encrypt(trimmedApiKey) : null,
           baseUrl: validated.baseUrl,
         },
         update: {
-          encryptedKey: apiKey?.trim() ? encrypt(apiKey.trim()) : null,
+          encryptedKey: trimmedApiKey ? encrypt(trimmedApiKey) : null,
           baseUrl: validated.baseUrl,
         },
       })

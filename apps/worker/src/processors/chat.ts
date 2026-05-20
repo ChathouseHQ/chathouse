@@ -132,29 +132,34 @@ const TITLE_MODELS: Array<{ modelId: string; provider: 'openai' | 'anthropic' | 
   { modelId: 'claude-haiku-4-5', provider: 'anthropic' },
 ]
 
+type OllamaTitleModel = { modelId: string }
+type OllamaTitleModelSetting = { modelId: string; enabled: boolean; favorite: boolean }
+
 async function getOllamaTitleModels(userId: string): Promise<string[]> {
-  const models = await db.cachedModel.findMany({
+  const models: OllamaTitleModel[] = await db.cachedModel.findMany({
     where: { userId, provider: 'ollama' },
     select: { modelId: true },
   })
 
   if (models.length === 0) return []
 
-  const settings = await db.enabledModel.findMany({
-    where: { userId, modelId: { in: models.map((model) => model.modelId) } },
+  const settings: OllamaTitleModelSetting[] = await db.enabledModel.findMany({
+    where: { userId, modelId: { in: models.map((model: OllamaTitleModel) => model.modelId) } },
     select: { modelId: true, enabled: true, favorite: true },
   })
-  const settingsMap = new Map(settings.map((setting) => [setting.modelId, setting]))
+  const settingsMap = new Map<string, OllamaTitleModelSetting>(
+    settings.map((setting: OllamaTitleModelSetting) => [setting.modelId, setting]),
+  )
 
   return models
-    .filter((model) => settingsMap.get(model.modelId)?.enabled ?? true)
-    .toSorted((a, b) => {
+    .filter((model: OllamaTitleModel) => settingsMap.get(model.modelId)?.enabled ?? true)
+    .toSorted((a: OllamaTitleModel, b: OllamaTitleModel) => {
       const aFavorite = settingsMap.get(a.modelId)?.favorite ?? false
       const bFavorite = settingsMap.get(b.modelId)?.favorite ?? false
       if (aFavorite !== bFavorite) return bFavorite ? 1 : -1
       return a.modelId.localeCompare(b.modelId)
     })
-    .map((model) => model.modelId)
+    .map((model: OllamaTitleModel) => model.modelId)
 }
 
 export async function processTitleJob(job: Job<TitleJobData>) {

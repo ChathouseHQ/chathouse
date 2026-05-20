@@ -3,6 +3,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { decrypt, getModelMetadata, type Provider, type ReasoningLevel } from '@chathouse/database'
+import { createLogger } from '@chathouse/logger'
 import { stepCountIs, streamText, type ModelMessage, type UserContent } from 'ai'
 import { existsSync } from 'fs'
 import * as fs from 'fs/promises'
@@ -20,6 +21,8 @@ import {
   type WebSearchSource,
   type WebSearchToolEvent,
 } from './tools/web-search.js'
+
+const logger = createLogger('worker:utils')
 
 function resolveUploadDir(): string {
   if (process.env.UPLOAD_DIR) return process.env.UPLOAD_DIR
@@ -75,7 +78,7 @@ export async function getApiKey(userId: string, provider: Provider): Promise<str
   }
 }
 
-export async function getProviderConnection(
+async function getProviderConnection(
   userId: string,
   provider: Provider,
 ): Promise<{ apiKey?: string; baseUrl?: string } | null> {
@@ -90,9 +93,15 @@ export async function getProviderConnection(
     try {
       apiKey = decrypt(connection.encryptedKey)
     } catch {
-      return null
+      logger.error(
+        `Failed to decrypt API key for ${provider} (user: ${userId}). ` +
+          `This usually means SECRET_KEY_BASE changed since the key was saved.`,
+      )
+      if (provider !== 'ollama') return null
     }
   }
+
+  if (provider !== 'ollama' && !apiKey) return null
 
   return {
     ...(apiKey ? { apiKey } : {}),
@@ -403,9 +412,4 @@ export async function streamAIResponse(
   }
 }
 
-export {
-  formatModelName,
-  isGoogleChatModelId,
-  isOpenAIModelId,
-  resolveProviderForModelId,
-} from './model-utils.js'
+export { formatModelName, isGoogleChatModelId, isOpenAIModelId } from './model-utils.js'
