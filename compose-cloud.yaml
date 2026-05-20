@@ -29,6 +29,8 @@ services:
       - SMTP_MOCK=${SMTP_MOCK:-false}
     volumes:
       - uploads_data:/app/data/uploads
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       mariadb:
         condition: service_healthy
@@ -49,6 +51,8 @@ services:
       - BRAVE_SEARCH_API_KEY=${BRAVE_SEARCH_API_KEY:-}
     volumes:
       - uploads_data:/app/data/uploads
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       mariadb:
         condition: service_healthy

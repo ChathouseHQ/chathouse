@@ -26,6 +26,7 @@ import {
   setProviderModelsEnabled,
   type UserModelSetting,
 } from '~/lib/models.server'
+import { ALL_PROVIDERS } from '~/lib/providers'
 import { addModelRefreshJob } from '~/lib/queue.server'
 import { requireAuth } from '~/lib/session.server'
 import { cn } from '~/lib/utils'
@@ -378,11 +379,27 @@ export default function ModelsSettingsPage() {
     })
   }, [allModels, searchQuery, filterProvider, showOnlyFavorites, modelSettings])
 
+  const unfilteredModelCounts = useMemo(() => {
+    const counts: Record<Provider, number> = {
+      openai: 0,
+      anthropic: 0,
+      google: 0,
+      ollama: 0,
+    }
+
+    for (const model of allModels) {
+      counts[model.provider] += 1
+    }
+
+    return counts
+  }, [allModels])
+
   const groupedModels = useMemo(() => {
     const groups: Record<Provider, typeof filteredModels> = {
       openai: [],
       anthropic: [],
       google: [],
+      ollama: [],
     }
 
     for (const model of filteredModels) {
@@ -392,12 +409,17 @@ export default function ModelsSettingsPage() {
     return groups
   }, [filteredModels])
 
+  const visibleProviders =
+    filterProvider === 'all'
+      ? ALL_PROVIDERS
+      : ALL_PROVIDERS.filter((provider) => provider === filterProvider)
+
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
       <TabHeader
         icon={CpuIcon}
         label="Models"
-        description="Manage which models you want to use in your chats"
+        description="Manage which models appear in your chats"
         iconColorClass="text-teal-500"
       />
 
@@ -455,7 +477,7 @@ export default function ModelsSettingsPage() {
             >
               All
             </button>
-            {(['openai', 'anthropic', 'google'] as Provider[]).map((provider) => (
+            {ALL_PROVIDERS.map((provider) => (
               <button
                 key={provider}
                 onClick={() => setFilterProvider(provider)}
@@ -482,7 +504,7 @@ export default function ModelsSettingsPage() {
       </div>
 
       {connectedProviders.length === 0 && (
-        <Alert variant="warning" title="No API keys configured" className="mb-6">
+        <Alert variant="warning" title="No providers connected" className="mb-6">
           Connect at least one provider in the{' '}
           <Link to="/settings/connections" className="font-medium underline">
             Connections
@@ -492,9 +514,11 @@ export default function ModelsSettingsPage() {
       )}
 
       <div className="space-y-6">
-        {(['openai', 'anthropic', 'google'] as Provider[]).map((provider) => {
+        {visibleProviders.map((provider) => {
           const models = groupedModels[provider]
           const isConnected = connectedProviders.includes(provider)
+          const hasUnfilteredModels = unfilteredModelCounts[provider] > 0
+          const showOllamaSetupHint = provider === 'ollama' && !hasUnfilteredModels
 
           if (models.length === 0 && !isConnected) return null
 
@@ -543,7 +567,27 @@ export default function ModelsSettingsPage() {
                   </div>
                 ) : (
                   <div className="p-8 text-center">
-                    <Text colour="muted">No models found</Text>
+                    {showOllamaSetupHint ? (
+                      <>
+                        <Text as="p" colour="muted">
+                          No Ollama models found
+                        </Text>
+                        <Text as="p" size="sm" colour="muted" className="mt-1">
+                          Pull a model in Ollama, then refresh models.
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text as="p" colour="muted">
+                          No models found
+                        </Text>
+                        {hasUnfilteredModels && (
+                          <Text as="p" size="sm" colour="muted" className="mt-1">
+                            Try adjusting your search or filters.
+                          </Text>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
               </Panel>

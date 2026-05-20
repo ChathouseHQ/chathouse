@@ -19,6 +19,7 @@ import { Form, Link, useFetcher, useNavigation } from 'react-router'
 import type { Provider, ModelFeature, ReasoningLevel } from '~/lib/models'
 import type { EnrichedModel } from '~/lib/models.server'
 
+import { ALL_PROVIDERS } from '~/lib/providers'
 import { cn, formatFileSize } from '~/lib/utils'
 import { Input, Menu, MenuItem, MenuIcons, Modal, ProviderLogo, Text, PROVIDER_NAMES } from '~/ui'
 
@@ -53,7 +54,6 @@ interface FavoriteActionData {
 }
 
 type SelectorTab = 'favorites' | Provider
-const ALL_PROVIDERS: Provider[] = ['openai', 'anthropic', 'google']
 
 export function ChatInput({
   models,
@@ -677,7 +677,9 @@ export function ChatInput({
                                   {PROVIDER_NAMES[activeTab]}
                                 </Text>
                                 <Text as="p" size="sm" colour="muted">
-                                  Connect your API key to use these models
+                                  {activeTab === 'ollama'
+                                    ? 'Configure an Ollama endpoint to use local or remote models'
+                                    : 'Connect your API key to use these models'}
                                 </Text>
                               </div>
                               <Link
@@ -706,9 +708,20 @@ export function ChatInput({
                               ) : (
                                 <>
                                   <LightningIcon className="text-surface-400 mx-auto mb-2 h-5 w-5" />
-                                  <Text as="p" size="sm" colour="muted">
-                                    All models disabled
-                                  </Text>
+                                  {activeTab === 'ollama' ? (
+                                    <>
+                                      <Text as="p" size="sm" colour="muted">
+                                        No Ollama models available
+                                      </Text>
+                                      <Text as="p" size="xs" colour="muted" className="mt-1">
+                                        Pull a model, then refresh models
+                                      </Text>
+                                    </>
+                                  ) : (
+                                    <Text as="p" size="sm" colour="muted">
+                                      All models disabled
+                                    </Text>
+                                  )}
                                   <Link
                                     to="/settings/models"
                                     className="text-primary-600 hover:text-primary-700 mt-1.5 inline-flex items-center gap-1 text-sm font-medium hover:underline"

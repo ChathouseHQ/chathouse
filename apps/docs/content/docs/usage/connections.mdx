@@ -1,17 +1,18 @@
 ---
 title: Connecting AI providers
-description: Bring your own API keys to connect OpenAI, Anthropic, and Google Gemini.
+description: Bring your own API keys and local endpoints to connect OpenAI, Anthropic, Google Gemini, and Ollama.
 ---
 
-Chathouse uses a Bring Your Own Key (BYOK) approach — you connect directly to AI providers using your own API keys. There's no subscription, no middleman, and no markup. You pay only for what you use at each provider's standard API rates.
+Chathouse uses a bring-your-own-provider approach. You can connect cloud providers with your own API keys, or point Chathouse at a local Ollama/OpenWebUI endpoint.
 
 ## Supported providers
 
-| Provider      | Models                               | Get an API key                                                                     |
-| ------------- | ------------------------------------ | ---------------------------------------------------------------------------------- |
-| **OpenAI**    | GPT-4o, GPT-4, o1, o3, and more      | [platform.openai.com/api-keys](https://platform.openai.com/api-keys)               |
-| **Anthropic** | Claude Sonnet, Opus, Haiku, and more | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
-| **Google**    | Gemini 2.5 Pro, Flash, and more      | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)           |
+| Provider      | Models                                    | Get an API key                                                                     |
+| ------------- | ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| **OpenAI**    | GPT-4o, GPT-4, o1, o3, and more           | [platform.openai.com/api-keys](https://platform.openai.com/api-keys)               |
+| **Anthropic** | Claude Sonnet, Opus, Haiku, and more      | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
+| **Google**    | Gemini 2.5 Pro, Flash, and more           | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)           |
+| **Ollama**    | Local models and OpenWebUI gateway models | Optional, only needed if your gateway requires one                                 |
 
 ## Adding an API key
 
@@ -31,11 +32,19 @@ Click the **Get API key** link on the provider card to open the provider's key m
 
 ### Paste and save
 
-Back in Chathouse, paste your API key into the input field and click **Save**. The key format varies by provider:
+Back in Chathouse, paste your API key into the input field and click **Save**. The key format varies by cloud provider:
 
 - **OpenAI** — starts with `sk-...`
 - **Anthropic** — starts with `sk-ant-...`
 - **Google** — starts with `AIza...`
+
+For Ollama, enter the base URL that the Chathouse server or worker can reach:
+
+- **Local Ollama** — `http://localhost:11434/v1`
+- **Docker host Ollama** — `http://host.docker.internal:11434/v1`
+- **OpenWebUI gateway** — `http://localhost:3000/api` when Chathouse and OpenWebUI run on the same host, or `http://host.docker.internal:3000/api` when Chathouse runs in Docker and OpenWebUI runs on the host
+
+If your OpenWebUI instance requires authentication, paste an OpenWebUI API key in the optional API key field.
 
 </Step>
 <Step>

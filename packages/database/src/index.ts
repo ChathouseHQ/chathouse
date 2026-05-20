@@ -8,7 +8,13 @@ export type {
   ModelRefreshJobData,
   ReasoningLevel,
 } from './types.js'
-export { REASONING_LEVELS, isReasoningLevel } from './types.js'
+export {
+  PROVIDERS,
+  PROVIDER_NAMES,
+  isProvider,
+  REASONING_LEVELS,
+  isReasoningLevel,
+} from './types.js'
 export {
   getModelMetadata,
   getModelMetadataMatch,

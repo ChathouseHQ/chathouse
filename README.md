@@ -28,7 +28,7 @@ We are passionate about privacy and open source, aiming to build tools that empo
 We are building Chathouse to make interacting with Large Language Models simple, secure, and respectful of your privacy.
 
 - **Privacy-first and Self-hosted**: Run it on your own server (you own the data).
-- **Bring Your Own Key (BYOK)**: Connect directly to your favorite AI providers (OpenAI, Anthropic, Google) - no need to pay for subscriptions.
+- **Bring Your Own Provider**: Connect directly to OpenAI, Anthropic, Google, or local Ollama/OpenWebUI endpoints.
 - **File Uploads**: Attach files & media to your messages and have them processed by the AI.
 - **Temporary Chats**
 - **Sharable Chats**
