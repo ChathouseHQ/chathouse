@@ -68,9 +68,9 @@ function getOllamaBaseUrlCandidates(input: string): string[] {
   throw new Error('Ollama base URL must be an origin, or end with /v1 or /api')
 }
 
-function parseOpenAICompatibleModelIds(value: unknown): string[] {
+function parseOpenAICompatibleModelIds(value: unknown): string[] | null {
   if (!value || typeof value !== 'object' || !Array.isArray((value as { data?: unknown }).data)) {
-    return []
+    return null
   }
 
   const ids = new Set<string>()
@@ -105,7 +105,13 @@ export async function validateOpenAICompatibleModelEndpoint(
         continue
       }
 
-      return { baseUrl, modelIds: parseOpenAICompatibleModelIds(await response.json()) }
+      const modelIds = parseOpenAICompatibleModelIds(await response.json())
+      if (!modelIds) {
+        errors.push(`${baseUrl} returned an invalid model list`)
+        continue
+      }
+
+      return { baseUrl, modelIds }
     } catch (reason) {
       const message =
         reason instanceof Error && reason.name === 'AbortError'

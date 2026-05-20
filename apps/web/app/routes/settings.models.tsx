@@ -379,6 +379,21 @@ export default function ModelsSettingsPage() {
     })
   }, [allModels, searchQuery, filterProvider, showOnlyFavorites, modelSettings])
 
+  const unfilteredModelCounts = useMemo(() => {
+    const counts: Record<Provider, number> = {
+      openai: 0,
+      anthropic: 0,
+      google: 0,
+      ollama: 0,
+    }
+
+    for (const model of allModels) {
+      counts[model.provider] += 1
+    }
+
+    return counts
+  }, [allModels])
+
   const groupedModels = useMemo(() => {
     const groups: Record<Provider, typeof filteredModels> = {
       openai: [],
@@ -502,6 +517,8 @@ export default function ModelsSettingsPage() {
         {visibleProviders.map((provider) => {
           const models = groupedModels[provider]
           const isConnected = connectedProviders.includes(provider)
+          const hasUnfilteredModels = unfilteredModelCounts[provider] > 0
+          const showOllamaSetupHint = provider === 'ollama' && !hasUnfilteredModels
 
           if (models.length === 0 && !isConnected) return null
 
@@ -550,7 +567,7 @@ export default function ModelsSettingsPage() {
                   </div>
                 ) : (
                   <div className="p-8 text-center">
-                    {provider === 'ollama' ? (
+                    {showOllamaSetupHint ? (
                       <>
                         <Text as="p" colour="muted">
                           No Ollama models found
@@ -560,7 +577,16 @@ export default function ModelsSettingsPage() {
                         </Text>
                       </>
                     ) : (
-                      <Text colour="muted">No models found</Text>
+                      <>
+                        <Text as="p" colour="muted">
+                          No models found
+                        </Text>
+                        {hasUnfilteredModels && (
+                          <Text as="p" size="sm" colour="muted" className="mt-1">
+                            Try adjusting your search or filters.
+                          </Text>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
